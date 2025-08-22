@@ -26,23 +26,6 @@ See the Mulan PSL v2 for more details. */
  */
 
 /**
- * @brief 逻辑算子类型
- *
- */
-enum class LogicalOperatorType
-{
-  CALC,
-  TABLE_GET,   ///< 从表中获取数据
-  PREDICATE,   ///< 过滤，就是谓词
-  PROJECTION,  ///< 投影，就是select
-  JOIN,        ///< 连接
-  INSERT,      ///< 插入
-  DELETE,      ///< 删除，删除可能会有子查询
-  EXPLAIN,     ///< 查看执行计划
-  GROUP_BY,    ///< 分组
-};
-
-/**
  * @brief 逻辑算子描述当前执行计划要做什么
  * @details 可以看OptimizeStage中相关的代码
  */
@@ -52,8 +35,6 @@ public:
   LogicalOperator() = default;
   virtual ~LogicalOperator();
 
-  virtual LogicalOperatorType type() const = 0;
-
   bool is_physical() const override { return false; }
   bool is_logical() const override { return true; }
 
@@ -61,7 +42,7 @@ public:
   void        add_expressions(unique_ptr<Expression> expr);
   auto        children() -> vector<unique_ptr<LogicalOperator>>        &{ return children_; }
   auto        expressions() -> vector<unique_ptr<Expression>>        &{ return expressions_; }
-  static bool can_generate_vectorized_operator(const LogicalOperatorType &type);
+  static bool can_generate_vectorized_operator(const OpType &type);
   // TODO: used by cascade optimizer, tmp function, need to be remove
   void generate_general_child();
 

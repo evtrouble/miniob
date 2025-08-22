@@ -23,7 +23,7 @@ RC PredicateRewriteRule::rewrite(unique_ptr<LogicalOperator> &oper, bool &change
   }
 
   auto &child_oper = child_opers.front();
-  if (child_oper->type() != LogicalOperatorType::PREDICATE) {
+  if (child_oper->get_op_type() != OpType::LOGICALFILTER) {
     return RC::SUCCESS;
   }
 

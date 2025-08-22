@@ -30,8 +30,6 @@ public:
 
   virtual ~InsertPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::INSERT; }
-
   OpType get_op_type() const override { return OpType::INSERT; }
 
   RC open(Trx *trx) override;

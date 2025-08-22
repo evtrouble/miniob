@@ -27,8 +27,6 @@ public:
   InsertLogicalOperator(Table *table, vector<Value> values);
   virtual ~InsertLogicalOperator() = default;
 
-  LogicalOperatorType type() const override { return LogicalOperatorType::INSERT; }
-
   OpType get_op_type() const override { return OpType::LOGICALINSERT; }
 
   Table               *table() const { return table_; }

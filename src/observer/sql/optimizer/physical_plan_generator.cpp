@@ -50,40 +50,40 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 {
   RC rc = RC::SUCCESS;
 
-  switch (logical_operator.type()) {
-    case LogicalOperatorType::CALC: {
+  switch (logical_operator.get_op_type()) {
+    case OpType::LOGICALCALCULATE: {
       return create_plan(static_cast<CalcLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::TABLE_GET: {
+    case OpType::LOGICALGET: {
       return create_plan(static_cast<TableGetLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::PREDICATE: {
+    case OpType::LOGICALFILTER: {
       return create_plan(static_cast<PredicateLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::PROJECTION: {
+    case OpType::LOGICALPROJECTION: {
       return create_plan(static_cast<ProjectLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::INSERT: {
+    case OpType::LOGICALINSERT: {
       return create_plan(static_cast<InsertLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::DELETE: {
+    case OpType::LOGICALDELETE: {
       return create_plan(static_cast<DeleteLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::EXPLAIN: {
+    case OpType::LOGICALEXPLAIN: {
       return create_plan(static_cast<ExplainLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::JOIN: {
+    case OpType::LOGICALINNERJOIN: {
       return create_plan(static_cast<JoinLogicalOperator &>(logical_operator), oper, session);
     } break;
 
-    case LogicalOperatorType::GROUP_BY: {
+    case OpType::LOGICALGROUPBY: {
       return create_plan(static_cast<GroupByLogicalOperator &>(logical_operator), oper, session);
     } break;
 
@@ -99,21 +99,21 @@ RC PhysicalPlanGenerator::create_vec(LogicalOperator &logical_operator, unique_p
 {
   RC rc = RC::SUCCESS;
 
-  switch (logical_operator.type()) {
-    case LogicalOperatorType::TABLE_GET: {
+  switch (logical_operator.get_op_type()) {
+    case OpType::LOGICALGET: {
       return create_vec_plan(static_cast<TableGetLogicalOperator &>(logical_operator), oper, session);
     } break;
-    case LogicalOperatorType::PROJECTION: {
+    case OpType::LOGICALPROJECTION: {
       return create_vec_plan(static_cast<ProjectLogicalOperator &>(logical_operator), oper, session);
     } break;
-    case LogicalOperatorType::GROUP_BY: {
+    case OpType::LOGICALGROUPBY: {
       return create_vec_plan(static_cast<GroupByLogicalOperator &>(logical_operator), oper, session);
     } break;
-    case LogicalOperatorType::EXPLAIN: {
+    case OpType::LOGICALEXPLAIN: {
       return create_vec_plan(static_cast<ExplainLogicalOperator &>(logical_operator), oper, session);
     } break;
     default: {
-      LOG_WARN("unknown logical operator type: %d", logical_operator.type());
+      LOG_WARN("unknown logical operator type: %d", logical_operator.get_op_type());
       return RC::INVALID_ARGUMENT;
     }
   }

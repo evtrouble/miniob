@@ -25,7 +25,7 @@ public:
 
   virtual ~ProjectVecPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::PROJECT_VEC; }
+  OpType get_op_type() const override { return OpType::PROJECTION_VEC; }
 
   RC open(Trx *trx) override;
   RC next(Chunk &chunk) override;

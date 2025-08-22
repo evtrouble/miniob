@@ -30,7 +30,7 @@ public:
 
   string param() const override;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::TABLE_SCAN_VEC; }
+  OpType get_op_type() const override { return OpType::SEQSCAN_VEC; }
 
   RC open(Trx *trx) override;
   RC next(Chunk &chunk) override;

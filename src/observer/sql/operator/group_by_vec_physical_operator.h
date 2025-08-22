@@ -24,7 +24,7 @@ public:
 
   virtual ~GroupByVecPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::GROUP_BY_VEC; }
+  OpType get_op_type() const override { return OpType::GROUPBY_VEC; }
 
   RC open(Trx *trx) override { return RC::UNIMPLEMENTED; }
   RC next(Chunk &chunk) override { return RC::UNIMPLEMENTED; }

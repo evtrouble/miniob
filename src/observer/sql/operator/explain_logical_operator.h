@@ -26,7 +26,5 @@ public:
   ExplainLogicalOperator()          = default;
   virtual ~ExplainLogicalOperator() = default;
 
-  LogicalOperatorType type() const override { return LogicalOperatorType::EXPLAIN; }
-
   OpType get_op_type() const override { return OpType::LOGICALEXPLAIN; }
 };

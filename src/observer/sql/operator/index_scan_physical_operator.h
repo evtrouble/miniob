@@ -30,7 +30,7 @@ public:
 
   virtual ~IndexScanPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::INDEX_SCAN; }
+  OpType get_op_type() const override { return OpType::INDEXSCAN; }
 
   string param() const override;
 

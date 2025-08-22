@@ -31,7 +31,6 @@ public:
 
   virtual ~HashGroupByPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::HASH_GROUP_BY; }
   OpType               get_op_type() const override { return OpType::HASHGROUPBY; }
 
   RC open(Trx *trx) override;

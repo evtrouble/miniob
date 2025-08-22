@@ -23,7 +23,7 @@ public:
 
   virtual ~AggregateVecPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::AGGREGATE_VEC; }
+  OpType get_op_type() const override { return OpType::AGGREGATE_VEC; }
 
   RC open(Trx *trx) override;
   RC next(Chunk &chunk) override;

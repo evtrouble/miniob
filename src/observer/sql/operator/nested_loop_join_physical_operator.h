@@ -28,8 +28,6 @@ public:
   NestedLoopJoinPhysicalOperator();
   virtual ~NestedLoopJoinPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::NESTED_LOOP_JOIN; }
-
   OpType get_op_type() const override { return OpType::INNERNLJOIN; }
 
   virtual double calculate_cost(

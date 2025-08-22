@@ -42,8 +42,8 @@ std::unique_ptr<PhysicalOperator> Optimizer::choose_best_plan(int root_group_id)
   }
   auto winner_contents = winner->get_op();
   context_->get_memo().release_operator(winner_contents);
-  PhysicalOperator* winner_phys = dynamic_cast<PhysicalOperator*>(winner_contents);
-  LOG_TRACE("winner: %d", winner_phys->type());
+  PhysicalOperator* winner_phys = static_cast<PhysicalOperator*>(winner_contents);
+  LOG_TRACE("winner: %d", winner_phys->get_op_type());
   for (const auto& child : winner->get_child_group_ids()) {
     winner_phys->add_child(choose_best_plan(child));
   }

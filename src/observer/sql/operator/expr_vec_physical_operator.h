@@ -23,7 +23,7 @@ public:
 
   virtual ~ExprVecPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::EXPR_VEC; }
+  OpType get_op_type() const override { return OpType::EXPR_VEC; }
 
   RC open(Trx *trx) override;
   RC next(Chunk &chunk) override;

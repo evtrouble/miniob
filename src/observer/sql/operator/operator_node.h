@@ -59,7 +59,13 @@ enum class OpType
   HASHGROUPBY,
   ANALYZE,
   FILTER,
-  SCALARGROUPBY
+  SCALARGROUPBY,
+  STRINGLIST,
+  AGGREGATE_VEC,
+  EXPR_VEC,
+  GROUPBY_VEC,
+  PROJECTION_VEC,
+  SEQSCAN_VEC
 };
 
 // TODO: OperatorNode is the abstrace class of logical/physical operator
@@ -74,9 +80,6 @@ public:
    */
   // virtual std::string get_name() const = 0;
 
-  /**
-   * TODO: unify logical and physical OpType
-   */
   virtual OpType get_op_type() const { return OpType::UNDEFINED; }
 
   /**

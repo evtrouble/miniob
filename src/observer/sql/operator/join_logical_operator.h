@@ -27,7 +27,6 @@ public:
   JoinLogicalOperator()          = default;
   virtual ~JoinLogicalOperator() = default;
 
-  LogicalOperatorType type() const override { return LogicalOperatorType::JOIN; }
   void                add_predicate_op(LogicalOperator *predicate_op) { predicate_op_ = predicate_op; }
   auto                predicates() -> Expression *
   {

@@ -28,7 +28,6 @@ public:
 
   virtual ~ProjectPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::PROJECT; }
   OpType               get_op_type() const override { return OpType::PROJECTION; }
 
   virtual double calculate_cost(

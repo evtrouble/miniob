@@ -43,7 +43,7 @@ public:
     strings_.emplace_back(1, v);
   }
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::STRING_LIST; }
+  OpType get_op_type() const override { return OpType::STRINGLIST; }
 
   RC open(Trx *) override { return RC::SUCCESS; }
 

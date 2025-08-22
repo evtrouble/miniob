@@ -28,8 +28,6 @@ public:
   TableGetLogicalOperator(Table *table, ReadWriteMode mode);
   virtual ~TableGetLogicalOperator() = default;
 
-  LogicalOperatorType type() const override { return LogicalOperatorType::TABLE_GET; }
-
   OpType get_op_type() const override { return OpType::LOGICALGET; }
 
   virtual uint64_t hash() const override

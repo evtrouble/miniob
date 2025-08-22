@@ -26,8 +26,6 @@ public:
   ExplainPhysicalOperator()          = default;
   virtual ~ExplainPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::EXPLAIN; }
-
   OpType get_op_type() const override { return OpType::EXPLAIN; }
 
   double calculate_cost(LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override

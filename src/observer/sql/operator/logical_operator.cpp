@@ -20,14 +20,14 @@ void LogicalOperator::add_child(unique_ptr<LogicalOperator> oper) {
   children_.emplace_back(std::move(oper));
 }
 void LogicalOperator::add_expressions(unique_ptr<Expression> expr) { expressions_.emplace_back(std::move(expr)); }
-bool LogicalOperator::can_generate_vectorized_operator(const LogicalOperatorType &type)
+bool LogicalOperator::can_generate_vectorized_operator(const OpType &type)
 {
   bool bool_ret = false;
   switch (type)
   {
-  case LogicalOperatorType::CALC:
-  case LogicalOperatorType::DELETE:
-  case LogicalOperatorType::INSERT:
+  case OpType::LOGICALCALCULATE:
+  case OpType::LOGICALDELETE:
+  case OpType::LOGICALINSERT:
     bool_ret = false;
     break;
   
