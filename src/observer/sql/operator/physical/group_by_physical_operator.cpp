@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "common/lang/ranges.h"
-#include "sql/operator/group_by_physical_operator.h"
+#include "sql/operator/physical/group_by_physical_operator.h"
 #include "sql/expr/expression_tuple.h"
 #include "sql/expr/composite_tuple.h"
 

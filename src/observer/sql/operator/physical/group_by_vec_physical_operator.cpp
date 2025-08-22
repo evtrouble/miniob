@@ -8,13 +8,4 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-//
-// Created by Wangyunlai on 2022/12/13.
-//
-
-#include "sql/operator/predicate_logical_operator.h"
-
-PredicateLogicalOperator::PredicateLogicalOperator(unique_ptr<Expression> expression)
-{
-  expressions_.emplace_back(std::move(expression));
-}
+#include "sql/operator/physical/group_by_vec_physical_operator.h"

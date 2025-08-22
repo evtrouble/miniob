@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2021/6/9.
 //
 
-#include "sql/operator/table_scan_physical_operator.h"
+#include "sql/operator/physical/table_scan_physical_operator.h"
 #include "event/sql_debug.h"
 #include "storage/table/table.h"
 

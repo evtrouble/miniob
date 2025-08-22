@@ -8,10 +8,4 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-//
-// Created by WangYunlai on 2022/12/26.
-//
-
-#include "sql/operator/delete_logical_operator.h"
-
-DeleteLogicalOperator::DeleteLogicalOperator(Table *table) : table_(table) {}
+#include "sql/operator/physical/hash_join_physical_operator.h"

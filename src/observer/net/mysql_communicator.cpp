@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "session/session.h"
 #include "net/buffered_writer.h"
 #include "net/mysql_communicator.h"
-#include "sql/operator/string_list_physical_operator.h"
+#include "sql/operator/physical/string_list_physical_operator.h"
 
 /**
  * @brief MySQL协议相关实现

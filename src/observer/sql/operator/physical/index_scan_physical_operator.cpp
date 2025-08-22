@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/07/08.
 //
 
-#include "sql/operator/index_scan_physical_operator.h"
+#include "sql/operator/physical/index_scan_physical_operator.h"
 #include "storage/index/index.h"
 #include "storage/trx/trx.h"
 

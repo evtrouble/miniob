@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2022/12/30.
 //
 
-#include "sql/operator/join_physical_operator.h"
+#include "sql/operator/physical/join_physical_operator.h"
 
 NestedLoopJoinPhysicalOperator::NestedLoopJoinPhysicalOperator() {}
 

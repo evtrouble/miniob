@@ -8,4 +8,19 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-#include "sql/operator/group_by_vec_physical_operator.h"
+//
+// Created by WangYunlai on 2024/05/30.
+//
+
+#include "common/log/log.h"
+#include "sql/operator/logical/group_by_logical_operator.h"
+#include "sql/expr/expression.h"
+
+using namespace std;
+
+GroupByLogicalOperator::GroupByLogicalOperator(vector<unique_ptr<Expression>> &&group_by_exprs,
+                                               vector<Expression *> &&expressions)
+{
+  group_by_expressions_ = std::move(group_by_exprs);
+  aggregate_expressions_ = std::move(expressions);
+}

@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/12/15
 //
 
-#include "sql/operator/table_get_logical_operator.h"
+#include "sql/operator/logical/table_get_logical_operator.h"
 #include "sql/optimizer/cascade/property.h"
 #include "catalog/catalog.h"
 

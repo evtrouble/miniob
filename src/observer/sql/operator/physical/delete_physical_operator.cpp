@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2022/6/27.
 //
 
-#include "sql/operator/delete_physical_operator.h"
+#include "sql/operator/physical/delete_physical_operator.h"
 #include "common/log/log.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"

@@ -8,7 +8,7 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-#include "sql/operator/table_scan_vec_physical_operator.h"
+#include "sql/operator/physical/table_scan_vec_physical_operator.h"
 #include "event/sql_debug.h"
 #include "storage/table/table.h"
 

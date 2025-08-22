@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include "sql/operator/group_by_physical_operator.h"
+#include "sql/operator/physical/group_by_physical_operator.h"
 #include "sql/expr/composite_tuple.h"
 
 /**
