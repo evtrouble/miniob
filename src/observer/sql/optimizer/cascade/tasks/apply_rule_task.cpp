@@ -15,11 +15,11 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/rules.h"
 #include "common/log/log.h"
 
-void ApplyRule::perform()
+RC ApplyRule::perform()
 {
   LOG_TRACE("ApplyRule::perform() for rule: {%d}", rule_->get_rule_idx());
   if (group_expr_->rule_explored(rule_)) {
-    return;
+    return RC::SUCCESS;
   }
   // TODO: expr binding, currently group_expr_->get_op() is enough
   OperatorNode* before = group_expr_->get_op();
@@ -42,6 +42,7 @@ void ApplyRule::perform()
     } else {
       LOG_INFO("record_operator_node_into_group not insert new expr");
       new_gexpr->dump();
+      return RC::CASCADE_FAIL;
     }
   }
   
@@ -51,4 +52,5 @@ void ApplyRule::perform()
   }
 
   group_expr_->set_rule_explored(rule_);
+  return RC::SUCCESS;
 }

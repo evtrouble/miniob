@@ -23,7 +23,7 @@ public:
       : CascadeTask(context, CascadeTaskType::OPTIMIZE_GROUP), group_(group)
   {}
 
-  void perform() override;
+  RC perform() override;
 
 private:
   Group *group_;

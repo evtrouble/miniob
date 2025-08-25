@@ -51,15 +51,11 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
-  // TODO: better way
-  logical_operator->generate_general_child();
-  Optimizer optimizer;
-  // TODO: error handle
   unique_ptr<PhysicalOperator> physical_operator;
   if (sql_event->session_event()->session()->use_cascade()) {
-    physical_operator = optimizer.optimize(logical_operator.get());
-    if (!physical_operator) {
-      rc = RC::INTERNAL;
+    Optimizer optimizer;
+    rc = optimizer.optimize(std::move(logical_operator), physical_operator);
+    if (OB_FAIL(rc)) {
       LOG_WARN("failed to optimize logical plan. rc=%s", strrc(rc));
       return rc;
     }

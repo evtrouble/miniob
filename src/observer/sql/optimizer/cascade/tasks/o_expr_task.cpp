@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include <algorithm>
 
-void OptimizeExpression::perform()
+RC OptimizeExpression::perform()
 {
   std::vector<RuleWithPromise> valid_rules;
 
@@ -58,4 +58,5 @@ void OptimizeExpression::perform()
       child_group_idx++;
     }
   }
+  return RC::SUCCESS;
 }

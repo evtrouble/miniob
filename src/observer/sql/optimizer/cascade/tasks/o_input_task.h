@@ -30,7 +30,7 @@ public:
         cur_child_idx_(task->cur_child_idx_)
   {}
 
-  void perform() override;
+  RC perform() override;
 
   ~OptimizeInputs() override {}
 

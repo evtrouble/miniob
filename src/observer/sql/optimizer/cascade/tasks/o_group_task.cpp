@@ -13,15 +13,15 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/tasks/o_expr_task.h"
 #include "sql/optimizer/cascade/optimizer_context.h"
 
-void OptimizeGroup::perform()
+RC OptimizeGroup::perform()
 {
   LOG_TRACE("OptimizeGroup::perform() group %d", group_->get_id());
   // TODO: currently the cost upper bound is not used
   if (group_->get_cost_lb() > context_->get_cost_upper_bound()) {
-    return;
+    return RC::SUCCESS;
   }
   if (group_->get_winner() != nullptr) {
-    return;
+    return RC::SUCCESS;
   }
 
   if (!group_->has_explored()) {
@@ -35,4 +35,5 @@ void OptimizeGroup::perform()
   }
 
   group_->set_explored();
+  return RC::SUCCESS;
 }

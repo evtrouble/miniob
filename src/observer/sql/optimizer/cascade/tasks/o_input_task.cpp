@@ -15,7 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/memo.h"
 #include "common/log/log.h"
 
-void OptimizeInputs::perform()
+RC OptimizeInputs::perform()
 {
   LOG_TRACE("OptimizeInputs::perform()");
   if (cur_child_idx_ == -1) {
@@ -40,14 +40,15 @@ void OptimizeInputs::perform()
       prev_child_idx_ = cur_child_idx_;
       push_task(new OptimizeInputs(this));
       push_task(new OptimizeGroup(child_group, context_));
-      return;
+      return RC::SUCCESS;
     }
   }
 
-    if (cur_child_idx_ == static_cast<int>(group_expr_->get_children_groups_size())) {
-      group_expr_->set_local_cost(cur_total_cost_);
+  if (cur_child_idx_ == static_cast<int>(group_expr_->get_children_groups_size())) {
+    group_expr_->set_local_cost(cur_total_cost_);
 
-      auto cur_group = get_memo().get_group_by_id(group_expr_->get_group_id());
-      cur_group->set_expr_cost(group_expr_, cur_total_cost_);
-    }
+    auto cur_group = get_memo().get_group_by_id(group_expr_->get_group_id());
+    cur_group->set_expr_cost(group_expr_, cur_total_cost_);
+  }
+  return RC::SUCCESS;
 }

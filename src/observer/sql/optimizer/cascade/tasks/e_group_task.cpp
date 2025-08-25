@@ -12,11 +12,11 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/tasks/o_expr_task.h"
 #include "common/log/log.h"
 
-void ExploreGroup::perform()
+RC ExploreGroup::perform()
 {
   LOG_TRACE("ExploreGroup::perform() ");
   if (group_->has_explored()) {
-    return;
+    return RC::SUCCESS;
   }
 
   for (auto &logical_expr : group_->get_logical_expressions()) {
@@ -24,4 +24,5 @@ void ExploreGroup::perform()
   }
 
   group_->set_explored();
+  return RC::SUCCESS;
 }
