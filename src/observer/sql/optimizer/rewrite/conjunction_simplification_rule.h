@@ -9,27 +9,25 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2022/12/13.
+// Created by Wangyunlai on 2022/12/26.
 //
 
 #pragma once
 
-#include "common/sys/rc.h"
-#include "sql/optimizer/rewrite_rule.h"
+#include "sql/optimizer/rewrite/rewrite_rule.h"
 
 class LogicalOperator;
 
 /**
- * @brief 简单比较的重写规则
+ * @brief 简化多个表达式联结的运算
  * @ingroup Rewriter
- * @details 如果有简单的比较运算，比如比较的两边都是常量，那我们就可以在运行执行计划之前就知道结果，
- * 进而直接将表达式改成结果，这样就可以减少运行时的计算量。
+ * @details 比如只有一个表达式，或者表达式可以直接出来
  */
-class ComparisonSimplificationRule : public ExpressionRewriteRule
+class ConjunctionSimplificationRule : public ExpressionRewriteRule
 {
 public:
-  ComparisonSimplificationRule()          = default;
-  virtual ~ComparisonSimplificationRule() = default;
+  ConjunctionSimplificationRule()          = default;
+  virtual ~ConjunctionSimplificationRule() = default;
 
   RC rewrite(unique_ptr<Expression> &expr, bool &change_made) override;
 

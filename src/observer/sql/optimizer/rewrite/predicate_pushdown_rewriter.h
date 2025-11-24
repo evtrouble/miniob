@@ -9,28 +9,28 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2022/12/13.
+// Created by Wangyunlai on 2022/12/30.
 //
 
 #pragma once
 
-#include "common/lang/memory.h"
-#include "common/sys/rc.h"
-#include "sql/expr/expression.h"
-#include "sql/operator/logical_operator.h"
-#include "sql/optimizer/rewrite_rule.h"
+#include "common/lang/vector.h"
+#include "sql/optimizer/rewrite/rewrite_rule.h"
 
-class ExpressionRewriter : public RewriteRule
+/**
+ * @brief 将一些谓词表达式下推到表数据扫描中
+ * @ingroup Rewriter
+ * @details 这样可以提前过滤一些数据
+ */
+class PredicatePushdownRewriter : public RewriteRule
 {
 public:
-  ExpressionRewriter();
-  virtual ~ExpressionRewriter() = default;
+  PredicatePushdownRewriter()          = default;
+  virtual ~PredicatePushdownRewriter() = default;
 
   RC rewrite(unique_ptr<LogicalOperator> &oper, bool &change_made) override;
 
 private:
-  RC rewrite_expression(unique_ptr<Expression> &expr, bool &change_made);
-
-private:
-  vector<unique_ptr<ExpressionRewriteRule>> expr_rewrite_rules_;
+  RC   get_exprs_can_pushdown(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &pushdown_exprs);
+  bool is_empty_predicate(unique_ptr<Expression> &expr);
 };

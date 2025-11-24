@@ -12,10 +12,10 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/12/13.
 //
 
-#include "sql/optimizer/expression_rewriter.h"
+#include "sql/optimizer/rewrite/expression_rewriter.h"
 #include "common/log/log.h"
-#include "sql/optimizer/comparison_simplification_rule.h"
-#include "sql/optimizer/conjunction_simplification_rule.h"
+#include "sql/optimizer/rewrite/comparison_simplification_rule.h"
+#include "sql/optimizer/rewrite/conjunction_simplification_rule.h"
 
 using namespace std;
 

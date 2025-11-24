@@ -8,14 +8,4 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-#pragma once
-
-#include "common/lang/vector.h"
-#include "sql/optimizer/rewrite_rule.h"
-
-/**
- * @brief 将一些谓词表达式下推到join中
- * @ingroup Rewriter
- */
-class PredicateToJoinRewriter
-{};
+#include "sql/optimizer/rewrite/predicate_to_join_rule.h"

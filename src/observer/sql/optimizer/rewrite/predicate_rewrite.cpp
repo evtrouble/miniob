@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/12/29.
 //
 
-#include "sql/optimizer/predicate_rewrite.h"
+#include "sql/optimizer/rewrite/predicate_rewrite.h"
 #include "sql/operator/logical_operator.h"
 
 RC PredicateRewriteRule::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_made)

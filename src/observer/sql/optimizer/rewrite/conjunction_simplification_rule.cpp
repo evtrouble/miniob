@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/12/26.
 //
 
-#include "sql/optimizer/conjunction_simplification_rule.h"
+#include "sql/optimizer/rewrite/conjunction_simplification_rule.h"
 #include "common/log/log.h"
 #include "sql/expr/expression.h"
 

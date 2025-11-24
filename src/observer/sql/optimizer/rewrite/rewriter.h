@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include "sql/optimizer/rewrite_rule.h"
+#include "sql/optimizer/rewrite/rewrite_rule.h"
 #include "common/lang/memory.h"
 #include "common/lang/vector.h"
 
