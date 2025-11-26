@@ -47,8 +47,8 @@ public:
   {
     if (get_op_type() != other.get_op_type())
       return false;
-    const auto &other_get = dynamic_cast<const TableScanPhysicalOperator *>(&other);
-    if (table_->table_id() != other_get->table_id())
+    const auto &other_get = static_cast<const TableScanPhysicalOperator &>(other);
+    if (table_->table_id() != other_get.table_id())
       return false;
     return true;
   }

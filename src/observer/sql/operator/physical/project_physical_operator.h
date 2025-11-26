@@ -30,6 +30,30 @@ public:
 
   OpType               get_op_type() const override { return OpType::PROJECTION; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<size_t>()(expressions_.size());
+    for (const auto &expr : expressions_) {
+      hash ^= std::hash<int>()(static_cast<int>(expr->type()));
+    }
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_proj = static_cast<const ProjectPhysicalOperator &>(other);
+    if (expressions_.size() != other_proj.expressions_.size())
+      return false;
+    for (size_t i = 0; i < expressions_.size(); i++) {
+      if (!expressions_[i]->equal(*(other_proj.expressions_[i])))
+        return false;
+    }
+    return true;
+  }
+
   virtual double calculate_cost(
       LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
   {

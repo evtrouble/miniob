@@ -28,6 +28,47 @@ public:
   GroupByPhysicalOperator(vector<Expression *> &&expressions);
   virtual ~GroupByPhysicalOperator() = default;
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<size_t>()(aggregate_expressions_.size());
+    hash ^= std::hash<size_t>()(value_expressions_.size());
+    for (const auto &expr : aggregate_expressions_) {
+      if (expr) {
+        hash ^= std::hash<int>()(static_cast<int>(expr->type()));
+      }
+    }
+    for (const auto &expr : value_expressions_) {
+      if (expr) {
+        hash ^= std::hash<int>()(static_cast<int>(expr->type()));
+      }
+    }
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_gb = static_cast<const GroupByPhysicalOperator &>(other);
+    if (aggregate_expressions_.size() != other_gb.aggregate_expressions_.size())
+      return false;
+    if (value_expressions_.size() != other_gb.value_expressions_.size())
+      return false;
+    for (size_t i = 0; i < aggregate_expressions_.size(); i++) {
+      if (aggregate_expressions_[i] != other_gb.aggregate_expressions_[i]) {
+        // 对于 Expression*，比较指针是否相同
+        return false;
+      }
+    }
+    for (size_t i = 0; i < value_expressions_.size(); i++) {
+      if (value_expressions_[i] != other_gb.value_expressions_[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
 protected:
   using AggregatorList = vector<unique_ptr<Aggregator>>;
   /**

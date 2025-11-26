@@ -33,6 +33,32 @@ public:
 
   OpType               get_op_type() const override { return OpType::HASHGROUPBY; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = GroupByPhysicalOperator::hash();
+    hash ^= std::hash<size_t>()(group_by_exprs_.size());
+    for (const auto &expr : group_by_exprs_) {
+      hash ^= std::hash<int>()(static_cast<int>(expr->type()));
+    }
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    if (!GroupByPhysicalOperator::operator==(other))
+      return false;
+    const auto &other_hash_gb = static_cast<const HashGroupByPhysicalOperator &>(other);
+    if (group_by_exprs_.size() != other_hash_gb.group_by_exprs_.size())
+      return false;
+    for (size_t i = 0; i < group_by_exprs_.size(); i++) {
+      if (!group_by_exprs_[i]->equal(*(other_hash_gb.group_by_exprs_[i])))
+        return false;
+    }
+    return true;
+  }
+
   RC open(Trx *trx) override;
   RC next() override;
   RC close() override;

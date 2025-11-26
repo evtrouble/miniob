@@ -32,6 +32,21 @@ public:
 
   OpType get_op_type() const override { return OpType::DELETE; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<int>()(table_->table_id());
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_delete = static_cast<const DeletePhysicalOperator &>(other);
+    return table_->table_id() == other_delete.table_->table_id();
+  }
+
   RC open(Trx *trx) override;
   RC next() override;
   RC close() override;

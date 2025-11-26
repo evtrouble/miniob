@@ -32,6 +32,44 @@ public:
 
   OpType get_op_type() const override { return OpType::INDEXSCAN; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<int>()(table_->table_id());
+    if (index_) {
+      hash ^= std::hash<const void *>()(index_);
+    }
+    hash ^= std::hash<size_t>()(predicates_.size());
+    hash ^= std::hash<bool>()(left_inclusive_);
+    hash ^= std::hash<bool>()(right_inclusive_);
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_scan = static_cast<const IndexScanPhysicalOperator &>(other);
+    if (table_->table_id() != other_scan.table_->table_id())
+      return false;
+    if (index_ != other_scan.index_)
+      return false;
+    if (left_inclusive_ != other_scan.left_inclusive_ || right_inclusive_ != other_scan.right_inclusive_)
+      return false;
+    if (predicates_.size() != other_scan.predicates_.size())
+      return false;
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      if (!predicates_[i]->equal(*(other_scan.predicates_[i])))
+        return false;
+    }
+    // 比较 left_value_ 和 right_value_
+    if (left_value_.compare(other_scan.left_value_) != 0)
+      return false;
+    if (right_value_.compare(other_scan.right_value_) != 0)
+      return false;
+    return true;
+  }
+
   string param() const override;
 
   RC open(Trx *trx) override;

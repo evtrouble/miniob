@@ -31,7 +31,4 @@ public:
 
   OpType                      get_op_type() const override { return OpType::LOGICALPROJECTION; }
   unique_ptr<LogicalProperty> find_log_prop(const vector<LogicalProperty *> &log_props) override;
-
-  vector<unique_ptr<Expression>>       &expressions() { return expressions_; }
-  const vector<unique_ptr<Expression>> &expressions() const { return expressions_; }
 };

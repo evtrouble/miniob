@@ -27,6 +27,22 @@ public:
   virtual ~DeleteLogicalOperator() = default;
 
   OpType              get_op_type() const override { return OpType::LOGICALDELETE; }
+
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<int>()(table_->table_id());
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_delete = static_cast<const DeleteLogicalOperator &>(other);
+    return table_->table_id() == other_delete.table()->table_id();
+  }
+
   Table              *table() const { return table_; }
 
 private:

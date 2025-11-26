@@ -28,6 +28,30 @@ public:
 
   OpType               get_op_type() const override { return OpType::CALCULATE; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<size_t>()(expressions_.size());
+    for (const auto &expr : expressions_) {
+      hash ^= std::hash<int>()(static_cast<int>(expr->type()));
+    }
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_calc = static_cast<const CalcPhysicalOperator &>(other);
+    if (expressions_.size() != other_calc.expressions_.size())
+      return false;
+    for (size_t i = 0; i < expressions_.size(); i++) {
+      if (!expressions_[i]->equal(*(other_calc.expressions_[i])))
+        return false;
+    }
+    return true;
+  }
+
   string name() const override { return "CALC"; }
   string param() const override { return ""; }
 

@@ -16,11 +16,10 @@ See the Mulan PSL v2 for more details. */
 
 LogicalOperator::~LogicalOperator() {}
 
-void LogicalOperator::add_child(unique_ptr<LogicalOperator> oper) {
-  children_.emplace_back(std::move(oper));
+void LogicalOperator::add_expressions(unique_ptr<Expression> expr) { 
+  expressions_.emplace_back(std::move(expr)); 
 }
-void LogicalOperator::add_expressions(unique_ptr<Expression> expr) { expressions_.emplace_back(std::move(expr)); }
-bool LogicalOperator::can_generate_vectorized_operator(const OpType &type)
+bool LogicalOperator::can_generate_vectorized_operator(OpType type)
 {
   bool bool_ret = false;
   switch (type)
@@ -37,12 +36,3 @@ bool LogicalOperator::can_generate_vectorized_operator(const OpType &type)
   }
   return bool_ret;
 }
-
-void LogicalOperator::generate_general_child()
-{
-  for (auto &child : children_) {
-    general_children_.push_back(child.get());
-    child->generate_general_child();
-  }
-}
-

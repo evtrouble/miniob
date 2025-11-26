@@ -38,6 +38,30 @@ public:
 
   OpType get_op_type() const override { return OpType::LOGICALINNERJOIN; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<size_t>()(join_predicates_.size());
+    for (const auto &pred : join_predicates_) {
+      hash ^= std::hash<int>()(static_cast<int>(pred->type()));
+    }
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_join = static_cast<const JoinLogicalOperator &>(other);
+    if (join_predicates_.size() != other_join.join_predicates_.size())
+      return false;
+    for (size_t i = 0; i < join_predicates_.size(); i++) {
+      if (!join_predicates_[i]->equal(*(other_join.join_predicates_[i])))
+        return false;
+    }
+    return true;
+  }
+
   vector<unique_ptr<Expression>> &get_join_predicates() { return join_predicates_; }
 
   void clear_join_predicates() { join_predicates_.clear(); }
@@ -70,5 +94,5 @@ public:
 
 private:
   LogicalOperator                    *predicate_op_ = nullptr;
-  std::vector<unique_ptr<Expression>> join_predicates_;
+  std::vector<unique_ptr<Expression>> &join_predicates_ = expressions_;
 };

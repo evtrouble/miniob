@@ -29,6 +29,31 @@ public:
 
   OpType get_op_type() const override { return OpType::LOGICALINSERT; }
 
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<int>()(table_->table_id());
+    hash ^= std::hash<size_t>()(values_.size());
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_insert = static_cast<const InsertLogicalOperator &>(other);
+    if (table_->table_id() != other_insert.table()->table_id())
+      return false;
+    if (values_.size() != other_insert.values().size())
+      return false;
+    // 比较 values（Value 使用 compare 方法）
+    for (size_t i = 0; i < values_.size(); i++) {
+      if (values_[i].compare(other_insert.values()[i]) != 0)
+        return false;
+    }
+    return true;
+  }
+
   Table               *table() const { return table_; }
   const vector<Value> &values() const { return values_; }
   vector<Value>       &values() { return values_; }

@@ -34,6 +34,12 @@ public:
   {
     uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
     hash ^= std::hash<int>()(table_->table_id());
+    // 将 predicates 也加入 hash 计算
+    hash ^= std::hash<size_t>()(predicates_.size());
+    for (const auto &pred : predicates_) {
+      // 使用 Expression 的类型和基本特征来生成 hash
+      hash ^= std::hash<int>()(static_cast<int>(pred->type()));
+    }
     return hash;
   }
 
@@ -41,9 +47,16 @@ public:
   {
     if (get_op_type() != other.get_op_type())
       return false;
-    const auto &other_get = dynamic_cast<const TableGetLogicalOperator *>(&other);
-    if (table_->table_id() != other_get->table()->table_id())
+    const auto &other_get = static_cast<const TableGetLogicalOperator &>(other);
+    if (table_->table_id() != other_get.table()->table_id())
       return false;
+    // 比较 predicates：数量必须相同，且每个 predicate 必须相等
+    if (predicates_.size() != other_get.predicates_.size())
+      return false;
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      if (!predicates_[i]->equal(*(other_get.predicates_[i])))
+        return false;
+    }
     return true;
   }
 
