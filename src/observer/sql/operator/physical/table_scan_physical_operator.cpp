@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical/table_scan_physical_operator.h"
 #include "event/sql_debug.h"
 #include "storage/table/table.h"
+#include "sql/optimizer/optimizer_utils.h"
 
 using namespace std;
 
@@ -73,7 +74,20 @@ Tuple *TableScanPhysicalOperator::current_tuple()
   return &tuple_;
 }
 
-string TableScanPhysicalOperator::param() const { return table_->name(); }
+string TableScanPhysicalOperator::param() const
+{
+  string result = table_->name();
+  if (!predicates_.empty()) {
+    result += ", filter=";
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      if (i > 0) {
+        result += " AND ";
+      }
+      result += OptimizerUtils::expression_to_string(predicates_[i].get());
+    }
+  }
+  return result;
+}
 
 void TableScanPhysicalOperator::set_predicates(vector<unique_ptr<Expression>> &&exprs)
 {

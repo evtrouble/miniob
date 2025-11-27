@@ -25,7 +25,8 @@ class FilterStmt;
 class InsertStmt;
 class DeleteStmt;
 class ExplainStmt;
-class LogicalOperator;
+class GroupExpr;
+class OptimizerContext;
 
 class LogicalPlanGenerator
 {
@@ -33,17 +34,15 @@ public:
   LogicalPlanGenerator()          = default;
   virtual ~LogicalPlanGenerator() = default;
 
-  RC create(Stmt *stmt, unique_ptr<LogicalOperator> &logical_operator);
+  RC create(Stmt *stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
 
 private:
-  RC create_plan(CalcStmt *calc_stmt, unique_ptr<LogicalOperator> &logical_operator);
-  RC create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator);
-  RC create_plan(FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator);
-  RC create_plan(InsertStmt *insert_stmt, unique_ptr<LogicalOperator> &logical_operator);
-  RC create_plan(DeleteStmt *delete_stmt, unique_ptr<LogicalOperator> &logical_operator);
-  RC create_plan(ExplainStmt *explain_stmt, unique_ptr<LogicalOperator> &logical_operator);
-
-  RC create_group_by_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator);
+  RC create_plan(CalcStmt *calc_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
+  RC create_plan(SelectStmt *select_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
+  RC create_plan(FilterStmt *filter_stmt, GroupExpr *&root_gexpr, OptimizerContext *context, int gid);
+  RC create_plan(InsertStmt *insert_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
+  RC create_plan(DeleteStmt *delete_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
+  RC create_plan(ExplainStmt *explain_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
 
   int implicit_cast_cost(AttrType from, AttrType to);
 };

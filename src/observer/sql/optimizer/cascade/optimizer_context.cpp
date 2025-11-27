@@ -31,40 +31,32 @@ OptimizerContext::~OptimizerContext() {
     }
   }
 
-GroupExpr *OptimizerContext::make_group_expression(OperatorNode* node)
-{
-  std::vector<int> child_groups;
-  for (auto &child : node->get_general_children()) {
-    auto gexpr = make_group_expression(child);
+bool OptimizerContext::record_node_into_group(unique_ptr<OperatorNode> node, GroupExpr **gexpr,
+                                  int target_group) {
+  // 此方法仅用于没有子节点的叶子节点（如TableGet, Calc, Insert等）
+  // 对于有子节点的情况，应该使用record_node_into_group(CandidateExpression &candidate, ...)
+  // 注意：node的所有权会被转移到GroupExpr中
+  // 如果节点已存在，memo_->insert_expression会删除new_gexpr，从而释放node
+  std::vector<int> empty_child_groups;
+  auto new_gexpr = new GroupExpr(std::move(node), std::move(empty_child_groups));
+  auto ptr = memo_->insert_expression(new_gexpr, target_group);
+  ASSERT(ptr, "Root of expr should not fail insertion");
 
-    // Insert into the memo (this allows for duplicate detection)
-    auto mexpr = memo_->insert_expression(gexpr);
-    if (mexpr == nullptr) {
-      // Delete if need to (see InsertExpression spec)
-      child_groups.push_back(gexpr->get_group_id());
-      delete gexpr;
-    } else {
-      child_groups.push_back(mexpr->get_group_id());
-    }
-  }
-  return new GroupExpr(node, std::move(child_groups));
+  (*gexpr) = ptr;
+  // 如果返回的ptr不是new_gexpr，说明节点已存在，new_gexpr会被删除，node也会被释放
+  // 如果返回的ptr是new_gexpr，说明是新插入的，node的所有权已转移到GroupExpr
+  return (ptr == new_gexpr);
 }
 
-  bool OptimizerContext::record_node_into_group(OperatorNode* node, GroupExpr **gexpr,
-                                    int target_group) {
-    auto new_gexpr = make_group_expression(node);
-    auto ptr = memo_->insert_expression(new_gexpr, target_group);
-    ASSERT(ptr, "Root of expr should not fail insertion");
+bool OptimizerContext::record_node_into_group(CandidateExpression &candidate, GroupExpr **gexpr, int target_group) {
+  auto new_gexpr = new GroupExpr(std::move(candidate.op), std::move(candidate.child_group_ids));
+  auto ptr = memo_->insert_expression(new_gexpr, target_group);
+  ASSERT(ptr, "Root of expr should not fail insertion");
 
-    (*gexpr) = ptr;
-    return (ptr == new_gexpr);
-  }
+  (*gexpr) = ptr;
+  return (ptr == new_gexpr);
+}
 
-  Memo &OptimizerContext::get_memo() { return *memo_; }
+Memo &OptimizerContext::get_memo() { return *memo_; }
 
-  RuleSet &OptimizerContext::get_rule_set() { return *rule_set_; }
-
-  void OptimizerContext::record_operator_node_in_memo(unique_ptr<OperatorNode>&& node)
-  {
-    memo_->record_operator(std::move(node));
-  }
+RuleSet &OptimizerContext::get_rule_set() { return *rule_set_; }

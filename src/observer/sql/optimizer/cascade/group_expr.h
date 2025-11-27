@@ -28,8 +28,8 @@ public:
    * @param contents optimizer node contents
    * @param child_groups Vector of children groups
    */
-  GroupExpr(OperatorNode *contents, std::vector<int> &&child_groups)
-      : group_id_(-1), contents_(contents), child_groups_(child_groups)
+  GroupExpr(unique_ptr<OperatorNode> contents, std::vector<int> &&child_groups)
+      : group_id_(-1), contents_(std::move(contents)), child_groups_(child_groups)
   {}
 
   ~GroupExpr() {}
@@ -47,7 +47,8 @@ public:
     return child_groups_[child_idx];
   }
 
-  OperatorNode *get_op() { return contents_; }
+  OperatorNode *get_op() { return contents_.get(); }
+  OperatorNode *release_op() { return contents_.release(); }
 
   double get_cost() const { return lowest_cost_; }
 
@@ -77,7 +78,7 @@ public:
 private:
   int group_id_{};
 
-  OperatorNode *contents_{};
+  unique_ptr<OperatorNode> contents_{};
 
   std::vector<int> child_groups_;
 

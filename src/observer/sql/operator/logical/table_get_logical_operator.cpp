@@ -28,6 +28,19 @@ void TableGetLogicalOperator::set_predicates(vector<unique_ptr<Expression>> &&ex
 unique_ptr<LogicalProperty> TableGetLogicalOperator::find_log_prop(const vector<LogicalProperty*> &log_props)
 {
   int card = Catalog::get_instance().get_table_stats(table_->table_id()).row_nums;
-  // TODO: think about predicates.
+  
+  // 如果有 predicates，降低 cardinality
+  // 简单估计：每个谓词会减少约 10% 的行数
+  // TODO: 根据谓词类型和选择性来更准确地估计 cardinality
+  if (!predicates_.empty()) {
+    // 假设每个谓词过滤掉 90% 的数据，保留 10%
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      card = card / 10;
+      if (card < 1) {
+        card = 1;  // 至少保留 1 行
+      }
+    }
+  }
+  
   return make_unique<LogicalProperty>(card);
 }

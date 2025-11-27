@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/field/field.h"
 #include "storage/record/record.h"
+#include "sql/optimizer/optimizer_utils.h"
 
 PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr) : expression_(std::move(expr))
 {
@@ -70,4 +71,12 @@ Tuple *PredicatePhysicalOperator::current_tuple() { return children_[0]->current
 RC PredicatePhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
   return children_[0]->tuple_schema(schema);
+}
+
+string PredicatePhysicalOperator::param() const
+{
+  if (expression_ == nullptr) {
+    return "";
+  }
+  return OptimizerUtils::expression_to_string(expression_.get());
 }

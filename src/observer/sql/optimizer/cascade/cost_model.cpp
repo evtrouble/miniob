@@ -12,19 +12,117 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/memo.h"
 #include "catalog/catalog.h"
 #include "sql/optimizer/cascade/group_expr.h"
+#include "common/log/log.h"
+#include "sql/expr/expression.h"
 
 double CostModel::calculate_cost(Memo *memo,
                                GroupExpr *gexpr)
 {
   auto op = gexpr->get_op();
   auto log_prop = memo->get_group_by_id(gexpr->get_group_id())->get_logical_prop();
+  
+  // 如果 log_prop 为 nullptr，使用默认值
+  if (log_prop == nullptr) {
+    static LogicalProperty default_prop(0);
+    log_prop = &default_prop;
+  }
+  
   int arity = gexpr->get_children_groups_size();
   vector<LogicalProperty*> child_log_props;
   for (int i = 0; i < arity; ++i) {
     auto child_group_id = gexpr->get_child_group_id(i);
     auto child_gexpr = memo->get_group_by_id(child_group_id);
-    child_log_props.push_back(child_gexpr->get_logical_prop());
+    auto child_prop = child_gexpr->get_logical_prop();
+    // 如果 child_prop 为 nullptr，使用默认值
+    if (child_prop == nullptr) {
+      static LogicalProperty default_child_prop(0);
+      child_prop = &default_child_prop;
+    }
+    child_log_props.push_back(child_prop);
   }
-  return op->calculate_cost(log_prop, child_log_props, this);
+  double cost = op->calculate_cost(log_prop, child_log_props, this);
+  LOG_INFO("CostModel: op_type=%d, group_id=%d, prop_card=%d, arity=%d, cost=%.6f",
+           static_cast<int>(op->get_op_type()),
+           gexpr->get_group_id(),
+           log_prop ? log_prop->get_card() : 0,
+           arity,
+           cost);
+  if (arity > 0 && !child_log_props.empty() && child_log_props[0]) {
+    LOG_INFO("CostModel: first_child_card=%d", child_log_props[0]->get_card());
+  }
+  return cost;
 
+}
+
+double CostModel::calculate_expression_complexity(const Expression *expr) const
+{
+  if (expr == nullptr) {
+    return 1.0;  // Default complexity
+  }
+
+  double complexity = 0.0;
+  ExprType expr_type = expr->type();
+
+  switch (expr_type) {
+    case ExprType::VALUE:
+      // Constant value, no computation needed
+      complexity = 0.0;
+      break;
+
+    case ExprType::FIELD:
+      // Field access, very cheap
+      complexity = 1.0;
+      break;
+
+    case ExprType::CAST: {
+      // Type conversion, moderate cost
+      const CastExpr *cast_expr = static_cast<const CastExpr *>(expr);
+      complexity = 2.0 + calculate_expression_complexity(cast_expr->child().get());
+      break;
+    }
+
+    case ExprType::COMPARISON: {
+      // Comparison operation, moderate cost
+      const ComparisonExpr *cmp_expr = static_cast<const ComparisonExpr *>(expr);
+      complexity = 2.0 + calculate_expression_complexity(cmp_expr->left().get()) +
+                   calculate_expression_complexity(cmp_expr->right().get());
+      break;
+    }
+
+    case ExprType::ARITHMETIC: {
+      // Arithmetic operation, higher cost
+      const ArithmeticExpr *arith_expr = static_cast<const ArithmeticExpr *>(expr);
+      complexity = 3.0 + calculate_expression_complexity(arith_expr->left().get()) +
+                   calculate_expression_complexity(arith_expr->right().get());
+      break;
+    }
+
+    case ExprType::CONJUNCTION: {
+      // Conjunction (AND/OR), cost depends on number of children
+      const ConjunctionExpr *conj_expr = static_cast<const ConjunctionExpr *>(expr);
+      complexity = 1.0;  // Base cost for conjunction
+      for (const auto &child : conj_expr->children()) {
+        complexity += calculate_expression_complexity(child.get());
+      }
+      break;
+    }
+
+    case ExprType::AGGREGATION: {
+      // Aggregation function, high cost
+      const AggregateExpr *agg_expr = static_cast<const AggregateExpr *>(expr);
+      complexity = 5.0 + calculate_expression_complexity(agg_expr->child().get());
+      break;
+    }
+
+    case ExprType::STAR:
+    case ExprType::UNBOUND_FIELD:
+    case ExprType::UNBOUND_AGGREGATION:
+    case ExprType::NONE:
+    default:
+      // Unknown or unsupported types, use default
+      complexity = 1.0;
+      break;
+  }
+
+  return complexity;
 }

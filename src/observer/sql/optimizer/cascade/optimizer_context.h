@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 class Memo;
 class RuleSet;
+class CandidateExpression;
 /**
  * OptimizerContext is a class containing pointers to various objects
  * that are required during the entire query optimization process.
@@ -48,11 +49,11 @@ public:
 
   void record_operator_node_in_memo(unique_ptr<OperatorNode> &&node);
 
-  GroupExpr *make_group_expression(OperatorNode *node);
+  // 记录没有子节点的OperatorNode到memo中（用于叶子节点，如TableGet, Calc, Insert等）
+  bool record_node_into_group(unique_ptr<OperatorNode> node, GroupExpr **gexpr, int target_group = -1);
 
-  bool record_node_into_group(OperatorNode *node, GroupExpr **gexpr) { return record_node_into_group(node, gexpr, -1); }
-
-  bool record_node_into_group(OperatorNode *node, GroupExpr **gexpr, int target_group);
+  // 记录有子节点的CandidateExpression到memo中（子节点通过child_group_ids指定）
+  bool record_node_into_group(CandidateExpression &candidate, GroupExpr **gexpr, int target_group = -1);
 
   double get_cost_upper_bound() const { return cost_upper_bound_; }
 

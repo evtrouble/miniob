@@ -36,42 +36,40 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/stmt.h"
 
 #include "sql/expr/expression_iterator.h"
+#include "sql/optimizer/cascade/optimizer_context.h"
+#include "sql/optimizer/cascade/group_expr.h"
+#include "sql/optimizer/cascade/memo.h"
 
 using namespace std;
 using namespace common;
 
-RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create(Stmt *stmt, GroupExpr *&root_gexpr, OptimizerContext *context)
 {
   RC rc = RC::SUCCESS;
   switch (stmt->type()) {
     case StmtType::CALC: {
       CalcStmt *calc_stmt = static_cast<CalcStmt *>(stmt);
-
-      rc = create_plan(calc_stmt, logical_operator);
+      rc = create_plan(calc_stmt, root_gexpr, context);
     } break;
 
     case StmtType::SELECT: {
       SelectStmt *select_stmt = static_cast<SelectStmt *>(stmt);
-
-      rc = create_plan(select_stmt, logical_operator);
+      rc = create_plan(select_stmt, root_gexpr, context);
     } break;
 
     case StmtType::INSERT: {
       InsertStmt *insert_stmt = static_cast<InsertStmt *>(stmt);
-
-      rc = create_plan(insert_stmt, logical_operator);
+      rc = create_plan(insert_stmt, root_gexpr, context);
     } break;
 
     case StmtType::DELETE: {
       DeleteStmt *delete_stmt = static_cast<DeleteStmt *>(stmt);
-
-      rc = create_plan(delete_stmt, logical_operator);
+      rc = create_plan(delete_stmt, root_gexpr, context);
     } break;
 
     case StmtType::EXPLAIN: {
       ExplainStmt *explain_stmt = static_cast<ExplainStmt *>(stmt);
-
-      rc = create_plan(explain_stmt, logical_operator);
+      rc = create_plan(explain_stmt, root_gexpr, context);
     } break;
     default: {
       rc = RC::UNIMPLEMENTED;
@@ -80,76 +78,101 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
   return rc;
 }
 
-RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, GroupExpr *&root_gexpr, OptimizerContext *context)
 {
-  logical_operator.reset(new CalcLogicalOperator(std::move(calc_stmt->expressions())));
+  unique_ptr<OperatorNode> calc_op(new CalcLogicalOperator(std::move(calc_stmt->expressions())));
+  context->record_node_into_group(std::move(calc_op), &root_gexpr);
   return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, GroupExpr *&root_gexpr, OptimizerContext *context)
 {
-  unique_ptr<LogicalOperator> *last_oper = nullptr;
+  GroupExpr *last_gexpr = nullptr;
+  // GroupExpr *group_by_gexpr = nullptr;
 
-  unique_ptr<LogicalOperator> table_oper(nullptr);
-  last_oper = &table_oper;
-  unique_ptr<LogicalOperator> predicate_oper;
-
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
-  if (OB_FAIL(rc)) {
-    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
-    return rc;
-  }
-
+  // 1. 创建table get和join
   const vector<Table *> &tables = select_stmt->tables();
   for (Table *table : tables) {
+    unique_ptr<OperatorNode> table_get_op(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+    GroupExpr *table_get_gexpr = nullptr;
+    context->record_node_into_group(std::move(table_get_op), &table_get_gexpr);
 
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
-    if (table_oper == nullptr) {
-      table_oper = std::move(table_get_oper);
+    if (last_gexpr == nullptr) {
+      last_gexpr = table_get_gexpr;
     } else {
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-      join_oper->add_child(std::move(table_oper));
-      join_oper->add_child(std::move(table_get_oper));
-      table_oper = unique_ptr<LogicalOperator>(join_oper);
+      // 创建join
+      unique_ptr<OperatorNode> join_op(new JoinLogicalOperator);
+      std::vector<int> child_groups = {last_gexpr->get_group_id(), table_get_gexpr->get_group_id()};
+      CandidateExpression candidate(std::move(join_op), std::move(child_groups));
+      context->record_node_into_group(candidate, &last_gexpr);
     }
   }
 
-
-  if (predicate_oper) {
-    if (*last_oper) {
-      predicate_oper->add_child(std::move(*last_oper));
+  // 2. 创建filter/predicate 0x606000001820
+  if (select_stmt->filter_stmt()) {
+    // 先创建predicate的expressions
+    RC rc = create_plan(select_stmt->filter_stmt(), last_gexpr, context, last_gexpr->get_group_id());
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+      return rc;
     }
-
-    last_oper = &predicate_oper;
   }
 
-  unique_ptr<LogicalOperator> group_by_oper;
-  rc = create_group_by_plan(select_stmt, group_by_oper);
-  if (OB_FAIL(rc)) {
-    LOG_WARN("failed to create group by logical plan. rc=%s", strrc(rc));
-    return rc;
-  }
+  // // 3. 创建group by（检查是否有group by或聚合函数）
+  // bool has_aggregation = false;
+  // function<RC(unique_ptr<Expression>&)> check_aggregation = [&](unique_ptr<Expression> &expr) -> RC {
+  //   if (expr->type() == ExprType::AGGREGATION) {
+  //     has_aggregation = true;
+  //   }
+  //   return ExpressionIterator::iterate_child_expr(*expr, check_aggregation);
+  // };
+  // for (auto &expr : select_stmt->query_expressions()) {
+  //   check_aggregation(expr);
+  // }
 
-  if (group_by_oper) {
-    if (*last_oper) {
-      group_by_oper->add_child(std::move(*last_oper));
-    }
+  // if (select_stmt->group_by().size() > 0 || has_aggregation) {
+  //   // 创建group by expressions和aggregate expressions
+  //   vector<unique_ptr<Expression>> group_by_exprs;
+  //   for (auto &expr : select_stmt->group_by()) {
+  //     group_by_exprs.push_back(expr->copy());
+  //   }
 
-    last_oper = &group_by_oper;
-  }
+  //   vector<Expression *> aggregate_expressions;
+  //   function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
+  //     RC rc = RC::SUCCESS;
+  //     if (expr->type() == ExprType::AGGREGATION) {
+  //       aggregate_expressions.push_back(expr.get());
+  //     }
+  //     rc = ExpressionIterator::iterate_child_expr(*expr, collector);
+  //     return rc;
+  //   };
 
-  unique_ptr<LogicalOperator> project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
-  if (*last_oper) {
-    project_oper->add_child(std::move(*last_oper));
-  }
+  //   for (auto &expr : select_stmt->query_expressions()) {
+  //     collector(expr);
+  //   }
 
-  last_oper = &project_oper;
+  //   if (last_gexpr) {
+  //     unique_ptr<OperatorNode> group_by_op(new GroupByLogicalOperator(std::move(group_by_exprs), std::move(aggregate_expressions)));
+  //     std::vector<int> child_groups = {last_gexpr->get_group_id()};
+  //     CandidateExpression candidate(std::move(group_by_op), std::move(child_groups));
+  //     bool inserted = context->record_node_into_group(candidate, &group_by_gexpr);
+  //     if (!inserted) {
+  //       Memo &memo = context->get_memo();
+  //       auto group = memo.get_group_by_id(group_by_gexpr->get_group_id());
+  //       group_by_gexpr = group->get_logical_expression();
+  //     }
+  //     last_gexpr = group_by_gexpr;
+  //   }
+  // }
 
-  logical_operator = std::move(*last_oper);
+  // 4. 创建projection
+  unique_ptr<OperatorNode> project_op(new ProjectLogicalOperator(std::move(select_stmt->query_expressions())));
+  CandidateExpression candidate(std::move(project_op), {last_gexpr->get_group_id()});
+  context->record_node_into_group(candidate, &root_gexpr);
   return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, GroupExpr *&root_gexpr, OptimizerContext *context, int gid)
 {
   RC                                  rc = RC::SUCCESS;
   vector<unique_ptr<Expression>> cmp_exprs;
@@ -209,13 +232,11 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     cmp_exprs.emplace_back(cmp_expr);
   }
 
-  unique_ptr<PredicateLogicalOperator> predicate_oper;
-  if (!cmp_exprs.empty()) {
-    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
-    predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
-  }
+  unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+  unique_ptr<OperatorNode> predicate_op(new PredicateLogicalOperator(std::move(conjunction_expr)));
+  CandidateExpression candidate(std::move(predicate_op), {gid});
+  context->record_node_into_group(candidate, &root_gexpr);
 
-  logical_operator = std::move(predicate_oper);
   return rc;
 }
 
@@ -227,133 +248,70 @@ int LogicalPlanGenerator::implicit_cast_cost(AttrType from, AttrType to)
   return DataType::type_instance(from)->cast_cost(to);
 }
 
-RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, GroupExpr *&root_gexpr, OptimizerContext *context)
 {
   Table        *table = insert_stmt->table();
   vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
-
-  InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values);
-  logical_operator.reset(insert_operator);
+  unique_ptr<OperatorNode> insert_op(new InsertLogicalOperator(table, values));
+  context->record_node_into_group(std::move(insert_op), &root_gexpr);
   return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, GroupExpr *&root_gexpr, OptimizerContext *context)
 {
-  Table                      *table       = delete_stmt->table();
-  FilterStmt                 *filter_stmt = delete_stmt->filter_stmt();
-  unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  Table *table = delete_stmt->table();
+  FilterStmt *filter_stmt = delete_stmt->filter_stmt();
 
-  unique_ptr<LogicalOperator> predicate_oper;
+  // 1. 创建table get
+  unique_ptr<OperatorNode> table_get_op(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  GroupExpr *table_get_gexpr = nullptr;
+  context->record_node_into_group(std::move(table_get_op), &table_get_gexpr);
 
-  RC rc = create_plan(filter_stmt, predicate_oper);
-  if (rc != RC::SUCCESS) {
-    return rc;
+  // 2. 创建predicate（如果有）
+  GroupExpr *predicate_gexpr = nullptr;
+  GroupExpr *last_gexpr = table_get_gexpr;
+  
+  if (filter_stmt) {
+    RC rc = create_plan(filter_stmt, predicate_gexpr, context, last_gexpr->get_group_id());
+    if (OB_FAIL(rc)) {
+      return rc;
+    }
+    last_gexpr = predicate_gexpr;
   }
 
-  unique_ptr<LogicalOperator> delete_oper(new DeleteLogicalOperator(table));
+  // 3. 创建delete
+  unique_ptr<OperatorNode> delete_op(new DeleteLogicalOperator(table));
+  std::vector<int> child_groups = {last_gexpr->get_group_id()};
+  CandidateExpression candidate(std::move(delete_op), std::move(child_groups));
+  context->record_node_into_group(candidate, &root_gexpr);
 
-  if (predicate_oper) {
-    predicate_oper->add_child(std::move(table_get_oper));
-    delete_oper->add_child(std::move(predicate_oper));
-  } else {
-    delete_oper->add_child(std::move(table_get_oper));
-  }
-
-  logical_operator = std::move(delete_oper);
-  return rc;
+  return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::create_plan(ExplainStmt *explain_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(ExplainStmt *explain_stmt, GroupExpr *&root_gexpr, OptimizerContext *context)
 {
-  unique_ptr<LogicalOperator> child_oper;
-
   Stmt *child_stmt = explain_stmt->child();
+  GroupExpr *child_gexpr = nullptr;
 
-  RC rc = create(child_stmt, child_oper);
+  RC rc = create(child_stmt, child_gexpr, context);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create explain's child operator. rc=%s", strrc(rc));
     return rc;
   }
 
-  logical_operator = unique_ptr<LogicalOperator>(new ExplainLogicalOperator);
-  logical_operator->add_child(std::move(child_oper));
+  unique_ptr<OperatorNode> explain_op(new ExplainLogicalOperator);
+  if (child_gexpr) {
+    std::vector<int> child_groups = {child_gexpr->get_group_id()};
+    CandidateExpression candidate(std::move(explain_op), std::move(child_groups));
+    bool inserted = context->record_node_into_group(candidate, &root_gexpr);
+    if (!inserted) {
+      Memo &memo = context->get_memo();
+      auto group = memo.get_group_by_id(root_gexpr->get_group_id());
+      root_gexpr = group->get_logical_expression();
+    }
+  } else {
+    context->record_node_into_group(std::move(explain_op), &root_gexpr);
+  }
+
   return rc;
-}
-
-RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
-{
-  vector<unique_ptr<Expression>> &group_by_expressions = select_stmt->group_by();
-  vector<Expression *> aggregate_expressions;
-  vector<unique_ptr<Expression>> &query_expressions = select_stmt->query_expressions();
-  function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
-    RC rc = RC::SUCCESS;
-    if (expr->type() == ExprType::AGGREGATION) {
-      expr->set_pos(aggregate_expressions.size() + group_by_expressions.size());
-      aggregate_expressions.push_back(expr.get());
-    }
-    rc = ExpressionIterator::iterate_child_expr(*expr, collector);
-    return rc;
-  };
-
-  function<RC(unique_ptr<Expression>&)> bind_group_by_expr = [&](unique_ptr<Expression> &expr) -> RC {
-    RC rc = RC::SUCCESS;
-    for (size_t i = 0; i < group_by_expressions.size(); i++) {
-      auto &group_by = group_by_expressions[i];
-      if (expr->type() == ExprType::AGGREGATION) {
-        break;
-      } else if (expr->equal(*group_by)) {
-        expr->set_pos(i);
-        continue;
-      } else {
-        rc = ExpressionIterator::iterate_child_expr(*expr, bind_group_by_expr);
-      }
-    }
-    return rc;
-  };
-
- bool found_unbound_column = false;
-  function<RC(unique_ptr<Expression>&)> find_unbound_column = [&](unique_ptr<Expression> &expr) -> RC {
-    RC rc = RC::SUCCESS;
-    if (expr->type() == ExprType::AGGREGATION) {
-      // do nothing
-    } else if (expr->pos() != -1) {
-      // do nothing
-    } else if (expr->type() == ExprType::FIELD) {
-      found_unbound_column = true;
-    }else {
-      rc = ExpressionIterator::iterate_child_expr(*expr, find_unbound_column);
-    }
-    return rc;
-  };
-  
-
-  for (unique_ptr<Expression> &expression : query_expressions) {
-    bind_group_by_expr(expression);
-  }
-
-  for (unique_ptr<Expression> &expression : query_expressions) {
-    find_unbound_column(expression);
-  }
-
-  // collect all aggregate expressions
-  for (unique_ptr<Expression> &expression : query_expressions) {
-    collector(expression);
-  }
-
-  if (group_by_expressions.empty() && aggregate_expressions.empty()) {
-    // 既没有group by也没有聚合函数，不需要group by
-    return RC::SUCCESS;
-  }
-
-  if (found_unbound_column) {
-    LOG_WARN("column must appear in the GROUP BY clause or must be part of an aggregate function");
-    return RC::INVALID_ARGUMENT;
-  }
-
-  // 如果只需要聚合，但是没有group by 语句，需要生成一个空的group by 语句
-
-  auto group_by_oper = make_unique<GroupByLogicalOperator>(std::move(group_by_expressions),
-                                                           std::move(aggregate_expressions));
-  logical_operator = std::move(group_by_oper);
-  return RC::SUCCESS;
 }

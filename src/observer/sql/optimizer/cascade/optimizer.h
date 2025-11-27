@@ -15,18 +15,21 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical_operator.h"
 #include "sql/optimizer/cascade/property_set.h"
 
+class GroupExpr;
+
 /**
  * @brief cascade optimizer
- * TODO: currently, Optimizer is used for CBO optimization. need to unify the optimizer in miniob
  */
 class Optimizer
 {
 public:
   Optimizer() : context_(std::make_unique<OptimizerContext>()) {}
 
-  RC optimize(unique_ptr<OperatorNode> op_tree, std::unique_ptr<PhysicalOperator> &physical_operator);
+  RC optimize(GroupExpr *root_gexpr, std::unique_ptr<PhysicalOperator> &physical_operator);
 
   RC choose_best_plan(int root_id, std::unique_ptr<PhysicalOperator> &physical_operator);
+
+  OptimizerContext *context() { return context_.get(); }
 
 private:
   RC optimize_loop(int root_group_id);

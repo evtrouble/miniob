@@ -23,8 +23,14 @@ RC OptimizeInputs::perform()
 
     cur_child_idx_ = 0;
     // only calculate once for current group expr
-    cur_total_cost_ += context_->get_cost_model()->calculate_cost(
+    double local_cost = context_->get_cost_model()->calculate_cost(
           &context_->get_memo(), group_expr_);
+    cur_total_cost_ += local_cost;
+    LOG_INFO("OptimizeInputs: group_expr op_type=%d, group_id=%d, local_cost=%.6f, cur_total_cost=%.6f",
+             static_cast<int>(group_expr_->get_op()->get_op_type()),
+             group_expr_->get_group_id(),
+             local_cost,
+             cur_total_cost_);
   }
   for (; cur_child_idx_ < static_cast<int>(group_expr_->get_children_groups_size()); cur_child_idx_++) {
     auto child_group =
@@ -36,8 +42,7 @@ RC OptimizeInputs::perform()
       cur_total_cost_ += child_best_expr->get_cost();
       LOG_INFO("cur_total_cost_ = %f", cur_total_cost_);
       if (cur_total_cost_ > context_->get_cost_upper_bound()) break;
-    } else if (prev_child_idx_ != cur_child_idx_) {  // we haven't optimized child group
-      prev_child_idx_ = cur_child_idx_;
+    } else {  // we haven't optimized child group
       push_task(new OptimizeInputs(this));
       push_task(new OptimizeGroup(child_group, context_));
       return RC::SUCCESS;

@@ -45,16 +45,6 @@ public:
 
   void dump() const;
 
-  void record_operator(unique_ptr<OperatorNode> &&node) { operator_nodes_.emplace(node.get(), std::move(node)); }
-
-  void release_operator(OperatorNode *node)
-  {
-    auto it = operator_nodes_.find(node);
-    if (it != operator_nodes_.end()) {
-      it->second.release();
-    }
-  }
-
 private:
   int add_new_group(GroupExpr *gexpr);
 
@@ -85,9 +75,4 @@ private:
   std::unordered_set<GroupExpr *, GExprPtrHash, GExprPtrEq> group_expressions_;
 
   vector<unique_ptr<Group>> groups_;
-
-  // TODO: 这是用来存储在 optimize
-  // 过程中生成的临时物理算子节点的，有些物理算子节点的所有权会转移到外面，有些物理算子的所有权还在memo，需要删除。 用
-  // shared_ptr 更加合适，但是改动比较大，先暂时不改了。
-  std::unordered_map<OperatorNode *, unique_ptr<OperatorNode>> operator_nodes_;
 };

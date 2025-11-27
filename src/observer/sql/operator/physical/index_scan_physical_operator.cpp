@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical/index_scan_physical_operator.h"
 #include "storage/index/index.h"
 #include "storage/trx/trx.h"
+#include "sql/optimizer/optimizer_utils.h"
 
 IndexScanPhysicalOperator::IndexScanPhysicalOperator(Table *table, Index *index, ReadWriteMode mode, const Value *left_value,
     bool left_inclusive, const Value *right_value, bool right_inclusive)
@@ -137,5 +138,15 @@ RC IndexScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
 
 string IndexScanPhysicalOperator::param() const
 {
-  return string(index_->index_meta().name()) + " ON " + table_->name();
+  string result = string(index_->index_meta().name()) + " ON " + table_->name();
+  if (!predicates_.empty()) {
+    result += ", filter=";
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      if (i > 0) {
+        result += " AND ";
+      }
+      result += OptimizerUtils::expression_to_string(predicates_[i].get());
+    }
+  }
+  return result;
 }

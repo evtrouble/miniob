@@ -20,7 +20,9 @@ See the Mulan PSL v2 for more details. */
 enum class RuleType : uint32_t
 {
   // Transformation rules (logical -> logical)
-  // TODO: currently, we don't have transformation rules
+  PREDICATE_PUSHDOWN,      // 谓词下推
+  PREDICATE_REWRITE,       // 谓词重写（删除恒真/恒假谓词）
+  EXPRESSION_SIMPLIFY,     // 表达式简化
 
   // Don't move this one
   LogicalPhysicalDelimiter,
@@ -51,26 +53,41 @@ enum class RuleType : uint32_t
  */
 enum class RuleSetName : uint32_t
 {
-  // TODO: add more rule sets
-  PHYSICAL_IMPLEMENTATION
+  LOGICAL_TRANSFORMATION,  // 逻辑转换规则（logical -> logical）
+  PHYSICAL_IMPLEMENTATION  // 物理实现规则（logical -> physical）
 };
 
 /**
  * Enum defining rule promises
- * LogicalPromise should be used for logical rules
+ * Higher promise means the rule should be applied sooner.
+ * Since we use a stack (LIFO), rules with higher promise are pushed later and executed first.
+ * We want TRANSFORMATION rules (logical -> logical) to execute before IMPLEMENTATION rules (logical -> physical),
+ * so TRANSFORMATION rules should have higher promise.
  */
 enum class RulePromise : uint32_t
 {
 
   /**
-   * Logical rule/low priority unnest
+   * Physical rule (implementation rules)
+   * Lower promise, will be pushed first, executed later
    */
-  LOGICAL_PROMISE = 0,
+  PHYSICAL_PROMISE = 0,
 
   /**
-   * Physical rule
+   * Logical rule (transformation rules)
+   * Higher promise, will be pushed later, executed first
    */
-  PHYSICAL_PROMISE = 1
+  LOGICAL_PROMISE = 1
+};
+
+struct CandidateExpression
+{
+  std::unique_ptr<OperatorNode> op;
+  std::vector<int>              child_group_ids;
+
+  CandidateExpression(std::unique_ptr<OperatorNode> node, std::vector<int> children = std::vector<int>())
+      : op(std::move(node)), child_group_ids(std::move(children))
+  {}
 };
 
 /**
@@ -126,8 +143,8 @@ public:
    * @param transformed Vector of "after" operator trees
    * @param context The current optimization context
    */
-  virtual void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const = 0;
+  virtual void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const = 0;
 
 protected:
   RuleType            type_;

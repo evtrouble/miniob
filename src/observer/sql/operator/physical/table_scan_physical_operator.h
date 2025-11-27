@@ -40,6 +40,12 @@ public:
   {
     uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
     hash ^= std::hash<int>()(table_->table_id());
+    hash ^= std::hash<size_t>()(predicates_.size());
+    for (const auto &pred : predicates_) {
+      if (pred) {
+        hash ^= std::hash<int>()(static_cast<int>(pred->type()));
+      }
+    }
     return hash;
   }
 
@@ -50,12 +56,22 @@ public:
     const auto &other_get = static_cast<const TableScanPhysicalOperator &>(other);
     if (table_->table_id() != other_get.table_id())
       return false;
+    if (predicates_.size() != other_get.predicates_.size())
+      return false;
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      if (!predicates_[i]->equal(*(other_get.predicates_[i])))
+        return false;
+    }
     return true;
   }
 
   double calculate_cost(LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
   {
-    return (cm->io() + cm->cpu_op()) * prop->get_card();
+    int card = prop ? prop->get_card() : 0;
+    if (card == 0) {
+      card = 1;  // Use minimum cardinality of 1 for cost calculation
+    }
+    return (cm->io() + cm->cpu_op()) * card;
   }
 
   RC open(Trx *trx) override;

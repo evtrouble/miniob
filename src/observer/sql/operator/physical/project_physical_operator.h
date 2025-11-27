@@ -57,7 +57,21 @@ public:
   virtual double calculate_cost(
       LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
   {
-    return (cm->cpu_op()) * prop->get_card();
+    int card = prop ? prop->get_card() : 0;
+    if (card == 0) {
+      card = 1;  // Use minimum cardinality of 1 for cost calculation
+    }
+    // Calculate total expression complexity for all expressions in projection
+    double total_expr_complexity = 0.0;
+    for (const auto &expr : expressions_) {
+      total_expr_complexity += cm->calculate_expression_complexity(expr.get());
+    }
+    if (total_expr_complexity < static_cast<double>(expressions_.size())) {
+      total_expr_complexity = static_cast<double>(expressions_.size());  // Minimum: 1.0 per expression
+    }
+    // Projection cost: CPU operation cost * cardinality * average expression complexity
+    double avg_expr_complexity = total_expr_complexity / static_cast<double>(expressions_.size());
+    return cm->cpu_op() * card * avg_expr_complexity;
   }
 
   RC open(Trx *trx) override;

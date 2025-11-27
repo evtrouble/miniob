@@ -12,18 +12,13 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/tasks/o_group_task.h"
 #include "sql/optimizer/cascade/memo.h"
 
-RC Optimizer::optimize(unique_ptr<OperatorNode> op_tree, std::unique_ptr<PhysicalOperator> &physical_operator)
+RC Optimizer::optimize(GroupExpr *root_gexpr, std::unique_ptr<PhysicalOperator> &physical_operator)
 {
-  // Generate initial operator tree from query tree
-  GroupExpr *gexpr = nullptr;
-  bool insert = context_->record_node_into_group(op_tree.get(), &gexpr);
-  if(!insert || gexpr == nullptr) {
-    LOG_ERROR("Logical expression tree should insert");
-    return RC::CASCADE_FAIL;
-  }
+  ASSERT(root_gexpr != nullptr, "Root group expression should not be null");
+  
   context_->get_memo().dump();
 
-  int root_id = gexpr->get_group_id();
+  int root_id = root_gexpr->get_group_id();
 
   RC rc = optimize_loop(root_id);
   if(OB_FAIL(rc)) {
@@ -40,17 +35,16 @@ RC Optimizer::choose_best_plan(int root_group_id, std::unique_ptr<PhysicalOperat
   Group *root_group = memo.get_group_by_id(root_group_id);
   if(root_group == nullptr) {
     LOG_ERROR("Root group should not be null");
-    return RC::CASCADE_FAIL;
+    return RC::OPTIMIZER_INVALID_GROUP_ID;
   }
 
   // Choose the best physical plan
   auto winner = root_group->get_winner();
   if (winner == nullptr) {
     LOG_WARN("No winner found in group %d", root_group_id);
-    return RC::CASCADE_FAIL;
+    return RC::OPTIMIZER_MEMO_INSERT_FAILED;
   }
-  auto winner_contents = winner->get_op();
-  context_->get_memo().release_operator(winner_contents);
+  auto winner_contents = winner->release_op();
   PhysicalOperator* winner_phys = static_cast<PhysicalOperator*>(winner_contents);
   LOG_TRACE("winner: %d", winner_phys->get_op_type());
   for (const auto& child : winner->get_child_group_ids()) {

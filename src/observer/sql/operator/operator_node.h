@@ -68,9 +68,9 @@ enum class OpType
   SEQSCAN_VEC
 };
 
-// TODO: OperatorNode is the abstrace class of logical/physical operator
-// in cascade there is EXPR to include OperatorNode and OperatorNode children
-// so here remove genral_children.
+// OperatorNode is the abstract class of logical/physical operator
+// In cascade optimizer, children are managed by GroupExpr through child_group_ids,
+// not by OperatorNode itself.
 class OperatorNode
 {
 public:
@@ -98,19 +98,8 @@ public:
   virtual uint64_t hash() const { return std::hash<int>()(static_cast<int>(get_op_type())); }
   virtual bool     operator==(const OperatorNode &other) const
   {
-    if (get_op_type() != other.get_op_type())
-      return false;
-    if (general_children_.size() != other.general_children_.size())
-      return false;
-
-    for (size_t idx = 0; idx < general_children_.size(); idx++) {
-      auto &child       = general_children_[idx];
-      auto &other_child = other.general_children_[idx];
-
-      if (*child != *other_child)
-        return false;
-    }
-    return true;
+    // 有额外成员的算子需要重写此方法来比较成员
+    return get_op_type() == other.get_op_type();
   }
   /**
    * @brief Generate the logical property of the operator node using the input logical properties.
@@ -130,18 +119,28 @@ public:
    * @param child_log_props A vector containing pointers to child logical properties.
    * @param cm A pointer to the cost model used for calculating the cost.
    * @return The calculated cost as a double.
+   * 
+   * @note Default implementation: uses CPU operation cost based on input cardinality.
+   *       If there are child operators, uses the first child's cardinality.
+   *       Otherwise, uses the current operator's cardinality.
    */
   virtual double calculate_cost(LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm)
   {
-    return 0.0;
+    // Default cost: CPU operation cost based on input cardinality
+    // For operators with children, use the first child's cardinality (input size)
+    // For leaf operators, use the current operator's cardinality
+    int card = 0;
+    if (!child_log_props.empty() && child_log_props[0] != nullptr) {
+      card = child_log_props[0]->get_card();
+    } else if (prop != nullptr) {
+      card = prop->get_card();
+    }
+    // If cardinality is 0, use a minimum cost to avoid zero cost
+    // This ensures that even empty tables/operators have some cost
+    if (card == 0) {
+      card = 1;  // Use minimum cardinality of 1 for cost calculation
+    }
+    // Use CPU operation cost as default, similar to ProjectPhysicalOperator
+    return cm->cpu_op() * card;
   }
-
-  void add_general_child(OperatorNode *child) { general_children_.push_back(child); }
-
-  vector<OperatorNode *> &get_general_children() { return general_children_; }
-
-protected:
-  // TODO: refactor
-  // cascade optimizer 中使用，为了logical/physical operator 可以统一在 cascade 中迭代
-  vector<OperatorNode *> general_children_;
 };

@@ -53,6 +53,27 @@ public:
     return expression_->equal(*(other_pred.expression_));
   }
 
+  double calculate_cost(LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
+  {
+    // Predicate 需要处理所有输入行，代价与输入 cardinality 成正比
+    // 这比在 TableScan 中直接过滤要昂贵，因为需要额外的 CPU 开销
+    if (child_log_props.empty() || !child_log_props[0]) {
+      return cm->cpu_op() * 1;  // Minimum cost even if no child
+    }
+    int card = child_log_props[0]->get_card();
+    if (card == 0) {
+      card = 1;  // Use minimum cardinality of 1 for cost calculation
+    }
+    // Calculate expression complexity to adjust cost
+    double expr_complexity = cm->calculate_expression_complexity(expression_.get());
+    if (expr_complexity < 1.0) {
+      expr_complexity = 1.0;  // Minimum complexity multiplier
+    }
+    // Predicate 的代价：需要扫描所有输入行并评估表达式
+    // 表达式复杂度越高，代价越高
+    return cm->cpu_op() * card * expr_complexity;
+  }
+
   RC open(Trx *trx) override;
   RC next() override;
   RC close() override;
@@ -60,6 +81,8 @@ public:
   Tuple *current_tuple() override;
 
   RC tuple_schema(TupleSchema &schema) const override;
+
+  string param() const override;
 
 private:
   unique_ptr<Expression> expression_;

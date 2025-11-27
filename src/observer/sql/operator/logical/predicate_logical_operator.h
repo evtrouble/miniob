@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
+#include "sql/optimizer/cascade/property.h"
 
 /**
  * @brief 谓词/过滤逻辑算子
@@ -28,4 +29,6 @@ public:
   virtual ~PredicateLogicalOperator() = default;
 
   OpType get_op_type() const override { return OpType::LOGICALFILTER; }
+
+  unique_ptr<LogicalProperty> find_log_prop(const vector<LogicalProperty *> &log_props) override;
 };

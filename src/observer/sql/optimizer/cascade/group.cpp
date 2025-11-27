@@ -28,6 +28,11 @@ Group::Group(int id, GroupExpr* expr, Memo *memo)
 		
 		logical_prop_ = (expr->get_op())->find_log_prop(input_prop);
   }
+  
+  // 如果 find_log_prop 返回 nullptr，创建一个默认的 LogicalProperty
+  if (logical_prop_ == nullptr) {
+    logical_prop_ = make_unique<LogicalProperty>(1000);
+  }
 }
 Group::~Group() {
   for (auto expr : logical_expressions_) {
@@ -49,8 +54,6 @@ void Group::add_expr(GroupExpr *expr)
 }
 
 bool Group::set_expr_cost(GroupExpr *expr, double cost) {
-  
-
   if (std::get<0>(winner_) > cost) {
     // this is lower cost
     winner_ = std::make_tuple(cost, expr);
@@ -65,7 +68,7 @@ GroupExpr *Group::get_winner() {
 
 GroupExpr *Group::get_logical_expression() {
   ASSERT(logical_expressions_.size() == 1, "There should exist only 1 logical expression");
-  ASSERT(physical_expressions_.empty(), "No physical expressions should be present");
+  ASSERT(!logical_expressions_.empty(), "No logical expressions should be present");
   return logical_expressions_[0];
 }
 
@@ -73,4 +76,14 @@ void Group::dump() const
 {
   LOG_TRACE("Group %d has %lu logical expressions and %lu physical expressions", 
            id_, logical_expressions_.size(), physical_expressions_.size(), physical_expressions_.size());
+
+  for (size_t i = 0; i < logical_expressions_.size(); i++) {
+    LOG_TRACE("  Logical[%lu]: op_type=%d", i, static_cast<int>(logical_expressions_[i]->get_op()->get_op_type()));
+  }
+  for (size_t i = 0; i < physical_expressions_.size(); i++) {
+    LOG_TRACE("  Physical[%lu]: op_type=%d, cost=%.6f", 
+              i, 
+              static_cast<int>(physical_expressions_[i]->get_op()->get_op_type()),
+              physical_expressions_[i]->get_cost());
+  }
 }

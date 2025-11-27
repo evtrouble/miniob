@@ -9,6 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
+#include "sql/optimizer/cascade/group_expr.h"
 #include "sql/optimizer/cascade/implementation_rules.h"
 #include "sql/operator/logical/table_get_logical_operator.h"
 #include "sql/operator/physical/table_scan_physical_operator.h"
@@ -27,28 +28,34 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/logical/group_by_logical_operator.h"
 #include "sql/operator/physical/scalar_group_by_physical_operator.h"
 #include "sql/operator/physical/hash_group_by_physical_operator.h"
+#include "sql/operator/physical/index_scan_physical_operator.h"
+#include "sql/operator/logical/join_logical_operator.h"
+#include "sql/operator/physical/nested_loop_join_physical_operator.h"
+#include "sql/operator/physical/hash_join_physical_operator.h"
+#include "sql/expr/expression.h"
 
 // -------------------------------------------------------------------------------------------------
 // PhysicalSeqScan
 // -------------------------------------------------------------------------------------------------
-LogicalGetToPhysicalSeqScan::LogicalGetToPhysicalSeqScan() {
-  type_ = RuleType::GET_TO_SEQ_SCAN;
+LogicalGetToPhysicalSeqScan::LogicalGetToPhysicalSeqScan()
+{
+  type_          = RuleType::GET_TO_SEQ_SCAN;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALGET));
 }
 
-void LogicalGetToPhysicalSeqScan::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const {
-  TableGetLogicalOperator* table_get_oper = dynamic_cast<TableGetLogicalOperator*>(input);
+void LogicalGetToPhysicalSeqScan::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  TableGetLogicalOperator *table_get_oper = static_cast<TableGetLogicalOperator *>(input->get_op());
 
   vector<unique_ptr<Expression>> &log_preds = table_get_oper->predicates();
-  vector<unique_ptr<Expression>> phys_preds;
+  vector<unique_ptr<Expression>>  phys_preds;
   for (auto &pred : log_preds) {
     phys_preds.push_back(pred->copy());
   }
 
-  Table *table = table_get_oper->table();
-  auto table_scan_oper = new TableScanPhysicalOperator(table, table_get_oper->read_write_mode());
+  Table *table           = table_get_oper->table();
+  auto   table_scan_oper = new TableScanPhysicalOperator(table, table_get_oper->read_write_mode());
   table_scan_oper->set_predicates(std::move(phys_preds));
   auto oper = unique_ptr<OperatorNode>(table_scan_oper);
 
@@ -56,49 +63,123 @@ void LogicalGetToPhysicalSeqScan::transform(OperatorNode* input,
 }
 
 // -------------------------------------------------------------------------------------------------
+// PhysicalIndexScan
+// -------------------------------------------------------------------------------------------------
+LogicalGetToPhysicalIndexScan::LogicalGetToPhysicalIndexScan()
+{
+  type_          = RuleType::GET_TO_INDEX_SCAN;
+  match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALGET));
+}
+
+void LogicalGetToPhysicalIndexScan::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  TableGetLogicalOperator *table_get_oper = static_cast<TableGetLogicalOperator *>(input->get_op());
+
+  vector<unique_ptr<Expression>> &predicates = table_get_oper->predicates();
+  Table *table = table_get_oper->table();
+
+  // 查找可以用于索引查找的表达式
+  Index     *index      = nullptr;
+  ValueExpr *value_expr = nullptr;
+  for (auto &expr : predicates) {
+    if (expr->type() == ExprType::COMPARISON) {
+      auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
+      // 简单处理，只找等值查询
+      if (comparison_expr->comp() != EQUAL_TO && comparison_expr->comp() != NOT_EQUAL) {
+        continue;
+      }
+
+      unique_ptr<Expression> &left_expr  = comparison_expr->left();
+      unique_ptr<Expression> &right_expr = comparison_expr->right();
+      // 左右比较的一边最少是一个值
+      if (left_expr->type() != ExprType::VALUE && right_expr->type() != ExprType::VALUE) {
+        continue;
+      }
+
+      FieldExpr *field_expr = nullptr;
+      if (left_expr->type() == ExprType::FIELD && right_expr->type() == ExprType::VALUE) {
+        field_expr = static_cast<FieldExpr *>(left_expr.get());
+        value_expr = static_cast<ValueExpr *>(right_expr.get());
+      } else if (right_expr->type() == ExprType::FIELD && left_expr->type() == ExprType::VALUE) {
+        field_expr = static_cast<FieldExpr *>(right_expr.get());
+        value_expr = static_cast<ValueExpr *>(left_expr.get());
+      }
+
+      if (field_expr == nullptr || value_expr == nullptr) {
+        continue;
+      }
+
+      const Field &field = field_expr->field();
+      // 检查字段是否属于当前表
+      if (field.table() != table) {
+        continue;
+      }
+      index = table->find_index_by_field(field.field_name());
+      if (nullptr != index) {
+        break;
+      }
+    }
+  }
+
+  // 只有在找到索引时才生成 IndexScan
+  if (index != nullptr && value_expr != nullptr) {
+    vector<unique_ptr<Expression>> phys_preds;
+    for (auto &pred : predicates) {
+      phys_preds.push_back(pred->copy());
+    }
+
+    const Value &value = value_expr->get_value();
+    auto index_scan_oper = new IndexScanPhysicalOperator(table, index, table_get_oper->read_write_mode(),
+        &value, true /*left_inclusive*/, &value, true /*right_inclusive*/);
+    index_scan_oper->set_predicates(std::move(phys_preds));
+    auto oper = unique_ptr<OperatorNode>(index_scan_oper);
+
+    transformed->emplace_back(std::move(oper));
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 //  LogicalProjectionToProjection
 // -------------------------------------------------------------------------------------------------
-LogicalProjectionToProjection::LogicalProjectionToProjection() {
-  type_ = RuleType::PROJECTION_TO_PHYSOCAL;
+LogicalProjectionToProjection::LogicalProjectionToProjection()
+{
+  type_          = RuleType::PROJECTION_TO_PHYSOCAL;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALPROJECTION));
-  auto child = new Pattern(OpType::LEAF);
+  auto child     = new Pattern(OpType::LEAF);
   match_pattern_->add_child(child);
 }
 
-void LogicalProjectionToProjection::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const {
-  auto project_oper = dynamic_cast<ProjectLogicalOperator*>(input);
-  vector<unique_ptr<LogicalOperator>> &child_opers = project_oper->children();
-  ASSERT(child_opers.size() == 1, "only one child is supported for now");
+void LogicalProjectionToProjection::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  auto project_oper = static_cast<ProjectLogicalOperator *>(input->get_op());
+  ASSERT(input->get_children_groups_size() == 1, "only one child is supported for now");
 
   unique_ptr<PhysicalOperator> child_phy_oper;
 
   auto project_operator = make_unique<ProjectPhysicalOperator>(std::move(project_oper->expressions()));
-  if (project_operator) {
-    project_operator->add_general_child(child_opers.front().get());
-  }
 
-  transformed->emplace_back(std::move(project_operator));
+  transformed->emplace_back(std::move(project_operator), input->get_child_group_ids());
 }
 
 // -------------------------------------------------------------------------------------------------
 // PhysicalInsert
 // -------------------------------------------------------------------------------------------------
-LogicalInsertToInsert::LogicalInsertToInsert() {
-  type_ = RuleType::INSERT_TO_PHYSICAL;
+LogicalInsertToInsert::LogicalInsertToInsert()
+{
+  type_          = RuleType::INSERT_TO_PHYSICAL;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALINSERT));
 }
 
+void LogicalInsertToInsert::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  InsertLogicalOperator *insert_oper = static_cast<InsertLogicalOperator *>(input->get_op());
 
-void LogicalInsertToInsert::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const {
-  InsertLogicalOperator* insert_oper = dynamic_cast<InsertLogicalOperator*>(input);
-
-  Table                  *table           = insert_oper->table();
-  vector<Value>          &values          = insert_oper->values();
-  auto insert_phy_oper = make_unique<InsertPhysicalOperator>(table, std::move(values));
+  Table         *table           = insert_oper->table();
+  vector<Value> &values          = insert_oper->values();
+  auto           insert_phy_oper = make_unique<InsertPhysicalOperator>(table, std::move(values));
 
   transformed->emplace_back(std::move(insert_phy_oper));
 }
@@ -108,23 +189,18 @@ void LogicalInsertToInsert::transform(OperatorNode* input,
 // -------------------------------------------------------------------------------------------------
 LogicalExplainToExplain::LogicalExplainToExplain()
 {
-  type_ = RuleType::EXPLAIN_TO_PHYSICAL;
+  type_          = RuleType::EXPLAIN_TO_PHYSICAL;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALEXPLAIN));
-  auto child = new Pattern(OpType::LEAF);
+  auto child     = new Pattern(OpType::LEAF);
   match_pattern_->add_child(child);
 }
 
-void LogicalExplainToExplain::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const
+void LogicalExplainToExplain::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
 {
-  auto explain_oper = dynamic_cast<ExplainLogicalOperator*>(input);
   unique_ptr<PhysicalOperator> explain_physical_oper(new ExplainPhysicalOperator());
-  for (auto &child : explain_oper->children()) {
-    explain_physical_oper->add_general_child(child.get());
-  }
 
-  transformed->emplace_back(std::move(explain_physical_oper));
+  transformed->emplace_back(std::move(explain_physical_oper), input->get_child_group_ids());
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -132,15 +208,14 @@ void LogicalExplainToExplain::transform(OperatorNode* input,
 // -------------------------------------------------------------------------------------------------
 LogicalCalcToCalc::LogicalCalcToCalc()
 {
-  type_ = RuleType::CALC_TO_PHYSICAL;
+  type_          = RuleType::CALC_TO_PHYSICAL;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALCALCULATE));
 }
 
-void LogicalCalcToCalc::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const
+void LogicalCalcToCalc::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
 {
-  auto calc_oper = dynamic_cast<CalcLogicalOperator*>(input);
+  auto                             calc_oper = static_cast<CalcLogicalOperator *>(input->get_op());
   unique_ptr<CalcPhysicalOperator> calc_phys_oper(new CalcPhysicalOperator(std::move(calc_oper->expressions())));
 
   transformed->emplace_back(std::move(calc_phys_oper));
@@ -151,24 +226,20 @@ void LogicalCalcToCalc::transform(OperatorNode* input,
 // -------------------------------------------------------------------------------------------------
 LogicalDeleteToDelete::LogicalDeleteToDelete()
 {
-  type_ = RuleType::DELETE_TO_PHYSICAL;
+  type_          = RuleType::DELETE_TO_PHYSICAL;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALDELETE));
-  auto child = new Pattern(OpType::LEAF);
+  auto child     = new Pattern(OpType::LEAF);
   match_pattern_->add_child(child);
 }
 
-void LogicalDeleteToDelete::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const
+void LogicalDeleteToDelete::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
 {
-  auto delete_oper = dynamic_cast<DeleteLogicalOperator*>(input);
+  auto delete_oper = static_cast<DeleteLogicalOperator*>(input->get_op());
 
   auto delete_phys_oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper->table()));
-  for (auto &child : delete_oper->children()) {
-    delete_phys_oper->add_general_child(child.get());
-  }
 
-  transformed->emplace_back(std::move(delete_phys_oper));
+  transformed->emplace_back(std::move(delete_phys_oper), input->get_child_group_ids());
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -176,89 +247,128 @@ void LogicalDeleteToDelete::transform(OperatorNode* input,
 // -------------------------------------------------------------------------------------------------
 LogicalPredicateToPredicate::LogicalPredicateToPredicate()
 {
-  type_ = RuleType::PREDICATE_TO_PHYSICAL;
+  type_          = RuleType::PREDICATE_TO_PHYSICAL;
   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALFILTER));
-  auto child = new Pattern(OpType::LEAF);
+  auto child     = new Pattern(OpType::LEAF);
   match_pattern_->add_child(child);
 }
 
-void LogicalPredicateToPredicate::transform(OperatorNode* input,
-                         std::vector<std::unique_ptr<OperatorNode>> *transformed,
-                         OptimizerContext *context) const
+void LogicalPredicateToPredicate::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
 {
-  auto predicate_oper = dynamic_cast<PredicateLogicalOperator*>(input);
+  auto predicate_oper = static_cast<PredicateLogicalOperator *>(input->get_op());
 
   vector<unique_ptr<Expression>> &expressions = predicate_oper->expressions();
   ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
 
-  unique_ptr<Expression> expression = std::move(expressions.front());
-  unique_ptr<PhysicalOperator> oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));
-  for (auto &child : predicate_oper->children()) {
-    oper->add_general_child(child.get());
-  }
-  transformed->emplace_back(std::move(oper));
+  unique_ptr<Expression>       expression = std::move(expressions.front());
+  unique_ptr<PhysicalOperator> oper =
+      unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));
+  transformed->emplace_back(std::move(oper), input->get_child_group_ids());
 }
 
 // -------------------------------------------------------------------------------------------------
-// Physical Aggregation
+// Physical Nested Loop Join
 // -------------------------------------------------------------------------------------------------
-// LogicalGroupByToAggregation::LogicalGroupByToAggregation()
-// {
-//   type_ = RuleType::GROUP_BY_TO_PHYSICAL_AGGREGATION;
-//   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALGROUPBY));
-//   auto child = new Pattern(OpType::LEAF);
-//   match_pattern_->add_child(child);
-// }
+LogicalInnerJoinToNestedLoopJoin::LogicalInnerJoinToNestedLoopJoin()
+{
+  type_          = RuleType::INNER_JOIN_TO_NL_JOIN;
+  match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALINNERJOIN));
+  auto left      = new Pattern(OpType::LEAF);
+  auto right     = new Pattern(OpType::LEAF);
+  match_pattern_->add_child(left);
+  match_pattern_->add_child(right);
+}
 
+void LogicalInnerJoinToNestedLoopJoin::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  ASSERT(input->get_children_groups_size() == 2, "join should have 2 children");
 
-// void LogicalGroupByToAggregation::transform(OperatorNode* input,
-//                          std::vector<std::unique_ptr<OperatorNode>> *transformed,
-//                          OptimizerContext *context) const
-// {
-//   auto groupby_oper = dynamic_cast<GroupByLogicalOperator*>(input);
-//   vector<unique_ptr<Expression>> &group_by_expressions = groupby_oper->group_by_expressions();
-//   unique_ptr<GroupByPhysicalOperator> groupby_phys_oper;
-//   if (group_by_expressions.empty()) {
-//     groupby_phys_oper = make_unique<ScalarGroupByPhysicalOperator>(std::move(groupby_oper->aggregate_expressions()));
-//   } else {
-//     return;
-//   }
-//   for (auto &child : groupby_oper->children()) {
-//     groupby_phys_oper->add_general_child(child.get());
-//   }
+  auto nl_join_oper = make_unique<NestedLoopJoinPhysicalOperator>();
+  transformed->emplace_back(std::move(nl_join_oper), input->get_child_group_ids());
+}
 
-//   transformed->emplace_back(std::move(groupby_phys_oper));
-// }
+// -------------------------------------------------------------------------------------------------
+// Physical Hash Join
+// -------------------------------------------------------------------------------------------------
+LogicalInnerJoinToHashJoin::LogicalInnerJoinToHashJoin()
+{
+  type_          = RuleType::INNER_JOIN_TO_HASH_JOIN;
+  match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALINNERJOIN));
+  auto left      = new Pattern(OpType::LEAF);
+  auto right     = new Pattern(OpType::LEAF);
+  match_pattern_->add_child(left);
+  match_pattern_->add_child(right);
+}
 
+void LogicalInnerJoinToHashJoin::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  ASSERT(input->get_children_groups_size() == 2, "join should have 2 children");
+
+  // TODO: HashJoinPhysicalOperator 目前是空的，需要实现
+  // 暂时不生成 HashJoin，等实现后再启用
+  // auto hash_join_oper = make_unique<HashJoinPhysicalOperator>();
+  // transformed->emplace_back(std::move(hash_join_oper), input->get_child_group_ids());
+}
+
+// -------------------------------------------------------------------------------------------------
+// Physical Aggregation (Scalar GroupBy)
+// -------------------------------------------------------------------------------------------------
+LogicalGroupByToAggregation::LogicalGroupByToAggregation()
+{
+  type_          = RuleType::GROUP_BY_TO_PHYSICAL_AGGREGATION;
+  match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALGROUPBY));
+  auto child     = new Pattern(OpType::LEAF);
+  match_pattern_->add_child(child);
+}
+
+void LogicalGroupByToAggregation::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  auto groupby_oper = static_cast<GroupByLogicalOperator *>(input->get_op());
+  vector<unique_ptr<Expression>> &group_by_expressions = groupby_oper->group_by_expressions();
+  
+  // 只有 group_by_expressions 为空时才生成 ScalarGroupBy
+  if (group_by_expressions.empty()) {
+    vector<Expression *> aggregate_exprs;
+    for (auto expr : groupby_oper->aggregate_expressions()) {
+      aggregate_exprs.push_back(expr);
+    }
+    auto groupby_phys_oper = make_unique<ScalarGroupByPhysicalOperator>(std::move(aggregate_exprs));
+    transformed->emplace_back(std::move(groupby_phys_oper), input->get_child_group_ids());
+  }
+}
 
 // -------------------------------------------------------------------------------------------------
 // Physical Hash Group By
 // -------------------------------------------------------------------------------------------------
-// LogicalGroupByToHashGroupBy::LogicalGroupByToHashGroupBy()
-// {
-//   type_ = RuleType::GROUP_BY_TO_PHYSICL_HASH_GROUP_BY;
-//   match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALGROUPBY));
-//   auto child = new Pattern(OpType::LEAF);
-//   match_pattern_->add_child(child);
-// }
+LogicalGroupByToHashGroupBy::LogicalGroupByToHashGroupBy()
+{
+  type_          = RuleType::GROUP_BY_TO_PHYSICL_HASH_GROUP_BY;
+  match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALGROUPBY));
+  auto child     = new Pattern(OpType::LEAF);
+  match_pattern_->add_child(child);
+}
 
-
-// void LogicalGroupByToHashGroupBy::transform(OperatorNode* input,
-//                          std::vector<std::unique_ptr<OperatorNode>> *transformed,
-//                          OptimizerContext *context) const
-// {
-//   auto groupby_oper = dynamic_cast<GroupByLogicalOperator*>(input);
-//   vector<unique_ptr<Expression>> &group_by_expressions = groupby_oper->group_by_expressions();
-//   unique_ptr<GroupByPhysicalOperator> groupby_phys_oper;
-//   if (group_by_expressions.empty()) {
-//     return;
-//   } else {
-//     groupby_phys_oper = make_unique<HashGroupByPhysicalOperator>(std::move(groupby_oper->group_by_expressions()),
-//         std::move(groupby_oper->aggregate_expressions()));
-//   }
-//   for (auto &child : groupby_oper->children()) {
-//     groupby_phys_oper->add_general_child(child.get());
-//   }
-
-//   transformed->emplace_back(std::move(groupby_phys_oper));
-// }
+void LogicalGroupByToHashGroupBy::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  auto groupby_oper = static_cast<GroupByLogicalOperator *>(input->get_op());
+  vector<unique_ptr<Expression>> &group_by_expressions = groupby_oper->group_by_expressions();
+  
+  // 只有 group_by_expressions 不为空时才生成 HashGroupBy
+  if (!group_by_expressions.empty()) {
+    vector<unique_ptr<Expression>> group_by_exprs;
+    for (auto &expr : group_by_expressions) {
+      group_by_exprs.push_back(expr->copy());
+    }
+    vector<Expression *> aggregate_exprs;
+    for (auto expr : groupby_oper->aggregate_expressions()) {
+      aggregate_exprs.push_back(expr);
+    }
+    auto groupby_phys_oper = make_unique<HashGroupByPhysicalOperator>(std::move(group_by_exprs), std::move(aggregate_exprs));
+    transformed->emplace_back(std::move(groupby_phys_oper), input->get_child_group_ids());
+  }
+}

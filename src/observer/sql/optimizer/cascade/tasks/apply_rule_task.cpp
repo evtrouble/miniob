@@ -22,16 +22,14 @@ RC ApplyRule::perform()
     return RC::SUCCESS;
   }
   // TODO: expr binding, currently group_expr_->get_op() is enough
-  OperatorNode* before = group_expr_->get_op();
-
   // TODO: check condition
 
-  std::vector<unique_ptr<OperatorNode>> after;
-  rule_->transform(before, &after, context_);
-  for (const auto &new_expr : after) {
+  std::vector<CandidateExpression> after;
+  rule_->transform(group_expr_, &after, context_);
+  for (auto &candidate : after) {
     GroupExpr *new_gexpr = nullptr;
     auto g_id = group_expr_->get_group_id();
-    if (context_->record_node_into_group(new_expr.get(), &new_gexpr, g_id)) {
+    if(context_->record_node_into_group(candidate, &new_gexpr, g_id)) {
       if (new_gexpr->get_op()->is_logical()) {
         // further optimize new expr
         push_task(new OptimizeExpression(new_gexpr, context_));
@@ -42,13 +40,7 @@ RC ApplyRule::perform()
     } else {
       LOG_INFO("record_operator_node_into_group not insert new expr");
       new_gexpr->dump();
-      return RC::CASCADE_FAIL;
     }
-  }
-  
-  // TODO: FIXME, better way for record memory allocation
-  for (size_t i = 0; i < after.size(); i++) {
-    context_->record_operator_node_in_memo(std::move(after[i]));
   }
 
   group_expr_->set_rule_explored(rule_);

@@ -43,9 +43,4 @@ private:
    * input currently being or about to be optimized
    */
   int cur_child_idx_ = -1;
-
-  /**
-   * keep track of the previous optimized input idx
-   */
-  int prev_child_idx_ = -1;
 };
