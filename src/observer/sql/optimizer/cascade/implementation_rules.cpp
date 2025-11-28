@@ -35,6 +35,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical/empty_physical_operator.h"
 #include "sql/operator/logical/empty_logical_operator.h"
 #include "sql/expr/expression.h"
+#include "sql/parser/parse_defs.h"
 
 // -------------------------------------------------------------------------------------------------
 // PhysicalSeqScan
@@ -83,12 +84,20 @@ void LogicalGetToPhysicalIndexScan::transform(
 
   // 查找可以用于索引查找的表达式
   Index     *index      = nullptr;
-  ValueExpr *value_expr = nullptr;
+  ValueExpr *left_value_expr  = nullptr;
+  ValueExpr *right_value_expr = nullptr;
+  bool       left_inclusive    = false;
+  bool       right_inclusive  = false;
+  CompOp     comp_op          = NO_OP;
+  
   for (auto &expr : predicates) {
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
-      // 简单处理，只找等值查询
-      if (comparison_expr->comp() != EQUAL_TO && comparison_expr->comp() != NOT_EQUAL) {
+      comp_op = comparison_expr->comp();
+      
+      // 支持等值查询和范围查询
+      // NOT_EQUAL 不支持索引扫描（需要扫描所有不等于的值）
+      if (comp_op == NOT_EQUAL) {
         continue;
       }
 
@@ -100,6 +109,8 @@ void LogicalGetToPhysicalIndexScan::transform(
       }
 
       FieldExpr *field_expr = nullptr;
+      ValueExpr *value_expr = nullptr;
+      
       if (left_expr->type() == ExprType::FIELD && right_expr->type() == ExprType::VALUE) {
         field_expr = static_cast<FieldExpr *>(left_expr.get());
         value_expr = static_cast<ValueExpr *>(right_expr.get());
@@ -117,23 +128,39 @@ void LogicalGetToPhysicalIndexScan::transform(
       if (field.table() != table) {
         continue;
       }
-      index = table->find_index_by_field(field.field_name());
-      if (nullptr != index) {
-        break;
+      
+      Index *found_index = table->find_index_by_field(field.field_name());
+      if (nullptr == found_index) {
+        continue;
       }
+      
+      // 找到索引，根据比较操作符设置范围
+      index = found_index;
+      
+      if (comp_op == EQUAL_TO) {
+        // 等值查询：left_value = right_value = value
+        left_value_expr = value_expr;
+        right_value_expr = value_expr;
+        left_inclusive = true;
+        right_inclusive = true;
+      } 
+      
+      break;  // 找到第一个可用的索引查询就退出
     }
   }
 
   // 只有在找到索引时才生成 IndexScan
-  if (index != nullptr && value_expr != nullptr) {
+  if (index != nullptr) {
     vector<unique_ptr<Expression>> phys_preds;
     for (auto &pred : predicates) {
       phys_preds.push_back(pred->copy());
     }
 
-    const Value &value = value_expr->get_value();
+    const Value *left_value = left_value_expr ? &left_value_expr->get_value() : nullptr;
+    const Value *right_value = right_value_expr ? &right_value_expr->get_value() : nullptr;
+    
     auto index_scan_oper = new IndexScanPhysicalOperator(table, index, table_get_oper->read_write_mode(),
-        &value, true /*left_inclusive*/, &value, true /*right_inclusive*/);
+        left_value, left_inclusive, right_value, right_inclusive);
     index_scan_oper->set_predicates(std::move(phys_preds));
     auto oper = unique_ptr<OperatorNode>(index_scan_oper);
 

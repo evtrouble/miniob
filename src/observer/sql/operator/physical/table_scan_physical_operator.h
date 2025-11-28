@@ -67,11 +67,32 @@ public:
 
   double calculate_cost(LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
   {
+    // 表扫描的代价计算：
+    // 1. IO 成本：需要扫描整个表（所有行），而不是只扫描匹配的行
+    // 2. CPU 成本：处理所有行并过滤（过滤后的行数）
+    // 表扫描需要扫描整个表，所以 IO 成本应该基于全表的行数
+    // 但为了简化，我们使用 prop 中的基数（过滤后的行数）作为近似
+    // TODO: 应该从 Catalog 获取全表的行数来计算 IO 成本
     int card = prop ? prop->get_card() : 0;
     if (card == 0) {
       card = 1;  // Use minimum cardinality of 1 for cost calculation
     }
-    return (cm->io() + cm->cpu_op()) * card;
+    
+    // 表扫描需要扫描整个表，IO 成本应该基于全表行数
+    // 但当前 prop 中的 card 是过滤后的基数，我们假设全表行数 = card * 10（简单估计）
+    // 实际上应该从 Catalog 获取准确的表统计信息
+    int full_table_rows = card * 10;  // 简单估计：假设过滤后保留 10% 的数据
+    if (full_table_rows < card) {
+      full_table_rows = card;  // 至少等于过滤后的基数
+    }
+    
+    // 表扫描的代价 = 扫描全表的 IO 成本 + 处理所有行的 CPU 成本
+    // 注意：表扫描需要扫描所有行，所以 IO 成本基于全表行数
+    double io_cost = cm->io() * full_table_rows;
+    // CPU 成本：处理所有行（包括过滤）
+    double cpu_cost = cm->cpu_op() * full_table_rows;
+    
+    return io_cost + cpu_cost;
   }
 
   RC open(Trx *trx) override;

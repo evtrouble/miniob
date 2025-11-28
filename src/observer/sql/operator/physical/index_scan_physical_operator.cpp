@@ -99,7 +99,8 @@ RC IndexScanPhysicalOperator::next()
 
 RC IndexScanPhysicalOperator::close()
 {
-  index_scanner_->destroy();
+  if(index_scanner_ != nullptr)
+    index_scanner_->destroy();
   index_scanner_ = nullptr;
   return RC::SUCCESS;
 }
