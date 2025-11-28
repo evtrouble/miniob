@@ -34,4 +34,5 @@ RuleSet::RuleSet()
   // add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalInnerJoinToHashJoin());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalGroupByToAggregation());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalGroupByToHashGroupBy());
+  add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalEmptyToEmpty());
 }

@@ -31,4 +31,6 @@ public:
   OpType get_op_type() const override { return OpType::LOGICALFILTER; }
 
   unique_ptr<LogicalProperty> find_log_prop(const vector<LogicalProperty *> &log_props) override;
+
+  unique_ptr<LogicalOperator> clone() const override;
 };

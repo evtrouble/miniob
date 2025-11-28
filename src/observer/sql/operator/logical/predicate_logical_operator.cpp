@@ -39,3 +39,11 @@ unique_ptr<LogicalProperty> PredicateLogicalOperator::find_log_prop(const vector
   
   return make_unique<LogicalProperty>(output_card);
 }
+
+unique_ptr<LogicalOperator> PredicateLogicalOperator::clone() const
+{
+  if (expressions_.empty()) {
+    return nullptr;
+  }
+  return make_unique<PredicateLogicalOperator>(expressions_[0]->copy());
+}

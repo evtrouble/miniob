@@ -33,3 +33,12 @@ unique_ptr<LogicalProperty> ProjectLogicalOperator::find_log_prop(const vector<L
   }
   return make_unique<LogicalProperty>(card);
 }
+
+unique_ptr<LogicalOperator> ProjectLogicalOperator::clone() const
+{
+  vector<unique_ptr<Expression>> exprs;
+  for (auto &expr : expressions_) {
+    exprs.push_back(expr->copy());
+  }
+  return make_unique<ProjectLogicalOperator>(std::move(exprs));
+}

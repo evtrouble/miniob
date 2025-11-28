@@ -65,6 +65,8 @@ public:
   auto &group_by_expressions() { return group_by_expressions_; }
   auto &aggregate_expressions() { return aggregate_expressions_; }
 
+  unique_ptr<LogicalOperator> clone() const override;
+
 private:
   vector<unique_ptr<Expression>> &group_by_expressions_ = expressions_;
   vector<Expression *>           aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数

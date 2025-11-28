@@ -32,6 +32,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/logical/join_logical_operator.h"
 #include "sql/operator/physical/nested_loop_join_physical_operator.h"
 #include "sql/operator/physical/hash_join_physical_operator.h"
+#include "sql/operator/physical/empty_physical_operator.h"
+#include "sql/operator/logical/empty_logical_operator.h"
 #include "sql/expr/expression.h"
 
 // -------------------------------------------------------------------------------------------------
@@ -371,4 +373,20 @@ void LogicalGroupByToHashGroupBy::transform(
     auto groupby_phys_oper = make_unique<HashGroupByPhysicalOperator>(std::move(group_by_exprs), std::move(aggregate_exprs));
     transformed->emplace_back(std::move(groupby_phys_oper), input->get_child_group_ids());
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+// Physical Empty
+// -------------------------------------------------------------------------------------------------
+LogicalEmptyToEmpty::LogicalEmptyToEmpty()
+{
+  type_          = RuleType::EMPTY_TO_PHYSICAL;
+  match_pattern_ = unique_ptr<Pattern>(new Pattern(OpType::LOGICALEMPTY));
+}
+
+void LogicalEmptyToEmpty::transform(
+    GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const
+{
+  unique_ptr<PhysicalOperator> empty_phys_oper(new EmptyPhysicalOperator());
+  transformed->emplace_back(std::move(empty_phys_oper));
 }

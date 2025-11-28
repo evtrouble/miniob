@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/tasks/e_group_task.h"
 #include "sql/optimizer/cascade/group_expr.h"
 #include "sql/optimizer/cascade/memo.h"
+#include "sql/operator/logical_operator.h"
 #include "common/log/log.h"
 #include <algorithm>
 
@@ -63,7 +64,9 @@ RC OptimizeExpression::perform()
   }
 
   if(valid_rules.size() == 0 && group_expr_->get_op()->is_logical()) {
-    LOG_ERROR("Missing physical implementation rule for logical operator type: %d", static_cast<int>(group_expr_->get_op()->get_op_type()));
+    auto logical_op = static_cast<LogicalOperator *>(group_expr_->get_op());
+    LOG_ERROR("Missing physical implementation rule for logical operator: %s (type: %d)", 
+              logical_op->name().c_str(), static_cast<int>(group_expr_->get_op()->get_op_type()));
     return RC::OPTIMIZER_GROUP_EXPR_CREATE_FAILED;
   }
 

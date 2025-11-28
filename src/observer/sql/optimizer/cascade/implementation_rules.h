@@ -156,3 +156,15 @@ public:
   void transform(
       GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
+
+/**
+ * Rule transforms Logical Empty -> Physical Empty
+ */
+class LogicalEmptyToEmpty : public Rule
+{
+public:
+  LogicalEmptyToEmpty();
+
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};

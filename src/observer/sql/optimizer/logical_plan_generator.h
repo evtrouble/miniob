@@ -43,6 +43,7 @@ private:
   RC create_plan(InsertStmt *insert_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
   RC create_plan(DeleteStmt *delete_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
   RC create_plan(ExplainStmt *explain_stmt, GroupExpr *&root_gexpr, OptimizerContext *context);
+  RC create_group_by_plan(SelectStmt *select_stmt, GroupExpr *&root_gexpr, OptimizerContext *context, int gid);
 
   int implicit_cast_cost(AttrType from, AttrType to);
 };

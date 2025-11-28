@@ -68,6 +68,16 @@ public:
 
   auto add_join_predicate(unique_ptr<Expression> &&predicate) { join_predicates_.push_back(std::move(predicate)); }
 
+  unique_ptr<LogicalOperator> clone() const override
+  {
+    auto new_join = make_unique<JoinLogicalOperator>();
+    // 复制 join predicates
+    for (auto &pred : join_predicates_) {
+      new_join->add_join_predicate(pred->copy());
+    }
+    return new_join;
+  }
+
   unique_ptr<LogicalProperty> find_log_prop(const vector<LogicalProperty *> &log_props) override
   {
     if (log_props.size() != 2) {

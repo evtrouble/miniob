@@ -108,7 +108,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, GroupExpr *&root_g
     }
   }
 
-  // 2. 创建filter/predicate 0x606000001820
+  // 2. 创建filter/predicate
   if (select_stmt->filter_stmt()) {
     // 先创建predicate的expressions
     RC rc = create_plan(select_stmt->filter_stmt(), last_gexpr, context, last_gexpr->get_group_id());
@@ -118,52 +118,12 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, GroupExpr *&root_g
     }
   }
 
-  // // 3. 创建group by（检查是否有group by或聚合函数）
-  // bool has_aggregation = false;
-  // function<RC(unique_ptr<Expression>&)> check_aggregation = [&](unique_ptr<Expression> &expr) -> RC {
-  //   if (expr->type() == ExprType::AGGREGATION) {
-  //     has_aggregation = true;
-  //   }
-  //   return ExpressionIterator::iterate_child_expr(*expr, check_aggregation);
-  // };
-  // for (auto &expr : select_stmt->query_expressions()) {
-  //   check_aggregation(expr);
-  // }
-
-  // if (select_stmt->group_by().size() > 0 || has_aggregation) {
-  //   // 创建group by expressions和aggregate expressions
-  //   vector<unique_ptr<Expression>> group_by_exprs;
-  //   for (auto &expr : select_stmt->group_by()) {
-  //     group_by_exprs.push_back(expr->copy());
-  //   }
-
-  //   vector<Expression *> aggregate_expressions;
-  //   function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
-  //     RC rc = RC::SUCCESS;
-  //     if (expr->type() == ExprType::AGGREGATION) {
-  //       aggregate_expressions.push_back(expr.get());
-  //     }
-  //     rc = ExpressionIterator::iterate_child_expr(*expr, collector);
-  //     return rc;
-  //   };
-
-  //   for (auto &expr : select_stmt->query_expressions()) {
-  //     collector(expr);
-  //   }
-
-  //   if (last_gexpr) {
-  //     unique_ptr<OperatorNode> group_by_op(new GroupByLogicalOperator(std::move(group_by_exprs), std::move(aggregate_expressions)));
-  //     std::vector<int> child_groups = {last_gexpr->get_group_id()};
-  //     CandidateExpression candidate(std::move(group_by_op), std::move(child_groups));
-  //     bool inserted = context->record_node_into_group(candidate, &group_by_gexpr);
-  //     if (!inserted) {
-  //       Memo &memo = context->get_memo();
-  //       auto group = memo.get_group_by_id(group_by_gexpr->get_group_id());
-  //       group_by_gexpr = group->get_logical_expression();
-  //     }
-  //     last_gexpr = group_by_gexpr;
-  //   }
-  // }
+  // 3. 创建group by（检查是否有group by或聚合函数）
+  RC rc = create_group_by_plan(select_stmt, last_gexpr, context, last_gexpr->get_group_id());
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create group by logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
 
   // 4. 创建projection
   unique_ptr<OperatorNode> project_op(new ProjectLogicalOperator(std::move(select_stmt->query_expressions())));
@@ -232,11 +192,15 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, GroupExpr *&root_g
     cmp_exprs.emplace_back(cmp_expr);
   }
 
-  unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
-  unique_ptr<OperatorNode> predicate_op(new PredicateLogicalOperator(std::move(conjunction_expr)));
-  CandidateExpression candidate(std::move(predicate_op), {gid});
+  unique_ptr<OperatorNode> predicate_oper;
+  if (cmp_exprs.size() == 1) {
+    predicate_oper = unique_ptr<OperatorNode>(new PredicateLogicalOperator(std::move(cmp_exprs[0])));
+  } else if(!cmp_exprs.empty()) {
+    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+    predicate_oper = unique_ptr<OperatorNode>(new PredicateLogicalOperator(std::move(conjunction_expr)));
+  }
+  CandidateExpression candidate(std::move(predicate_oper), {gid});
   context->record_node_into_group(candidate, &root_gexpr);
-
   return rc;
 }
 
@@ -314,4 +278,83 @@ RC LogicalPlanGenerator::create_plan(ExplainStmt *explain_stmt, GroupExpr *&root
   }
 
   return rc;
+}
+
+RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, GroupExpr *&root_gexpr, OptimizerContext *context, int gid)
+{
+  vector<unique_ptr<Expression>> &group_by_expressions = select_stmt->group_by();
+  vector<Expression *> aggregate_expressions;
+  vector<unique_ptr<Expression>> &query_expressions = select_stmt->query_expressions();
+  function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
+    RC rc = RC::SUCCESS;
+    if (expr->type() == ExprType::AGGREGATION) {
+      expr->set_pos(aggregate_expressions.size() + group_by_expressions.size());
+      aggregate_expressions.push_back(expr.get());
+    }
+    rc = ExpressionIterator::iterate_child_expr(*expr, collector);
+    return rc;
+  };
+
+  function<RC(unique_ptr<Expression>&)> bind_group_by_expr = [&](unique_ptr<Expression> &expr) -> RC {
+    RC rc = RC::SUCCESS;
+    for (size_t i = 0; i < group_by_expressions.size(); i++) {
+      auto &group_by = group_by_expressions[i];
+      if (expr->type() == ExprType::AGGREGATION) {
+        break;
+      } else if (expr->equal(*group_by)) {
+        expr->set_pos(i);
+        continue;
+      } else {
+        rc = ExpressionIterator::iterate_child_expr(*expr, bind_group_by_expr);
+      }
+    }
+    return rc;
+  };
+
+ bool found_unbound_column = false;
+  function<RC(unique_ptr<Expression>&)> find_unbound_column = [&](unique_ptr<Expression> &expr) -> RC {
+    RC rc = RC::SUCCESS;
+    if (expr->type() == ExprType::AGGREGATION) {
+      // do nothing
+    } else if (expr->pos() != -1) {
+      // do nothing
+    } else if (expr->type() == ExprType::FIELD) {
+      found_unbound_column = true;
+    }else {
+      rc = ExpressionIterator::iterate_child_expr(*expr, find_unbound_column);
+    }
+    return rc;
+  };
+
+
+  for (unique_ptr<Expression> &expression : query_expressions) {
+    bind_group_by_expr(expression);
+  }
+
+  for (unique_ptr<Expression> &expression : query_expressions) {
+    find_unbound_column(expression);
+  }
+
+  // collect all aggregate expressions
+  for (unique_ptr<Expression> &expression : query_expressions) {
+    collector(expression);
+  }
+
+  if (group_by_expressions.empty() && aggregate_expressions.empty()) {
+    // 既没有group by也没有聚合函数，不需要group by
+    return RC::SUCCESS;
+  }
+
+  if (found_unbound_column) {
+    LOG_WARN("column must appear in the GROUP BY clause or must be part of an aggregate function");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  // 如果只需要聚合，但是没有group by 语句，需要生成一个空的group by 语句
+  auto group_by_oper = std::unique_ptr<OperatorNode>(new GroupByLogicalOperator(std::move(group_by_expressions),
+                                                           std::move(aggregate_expressions)));
+  std::vector<int> child_groups = {gid};
+  CandidateExpression candidate(std::move(group_by_oper), std::move(child_groups));
+  context->record_node_into_group(candidate, &root_gexpr);
+  return RC::SUCCESS;
 }

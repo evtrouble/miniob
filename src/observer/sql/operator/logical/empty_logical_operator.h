@@ -8,32 +8,24 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-//
-// Created by Wangyunlai on 2022/12/07.
-//
-
 #pragma once
 
 #include "sql/operator/logical_operator.h"
 
 /**
- * @brief 逻辑算子描述当前执行计划要做什么
- * @details 可以看OptimizeStage中相关的代码
+ * @brief Empty逻辑算子
+ * @ingroup LogicalOperator
  */
-class CalcLogicalOperator : public LogicalOperator
+class EmptyLogicalOperator : public LogicalOperator
 {
 public:
-  CalcLogicalOperator(vector<unique_ptr<Expression>> &&expressions) { expressions_.swap(expressions); }
-  virtual ~CalcLogicalOperator() = default;
+  EmptyLogicalOperator()          = default;
+  virtual ~EmptyLogicalOperator() = default;
 
-  OpType              get_op_type() const override { return OpType::LOGICALCALCULATE; }
+  OpType get_op_type() const override { return OpType::LOGICALEMPTY; }
 
   unique_ptr<LogicalOperator> clone() const override
   {
-    vector<unique_ptr<Expression>> exprs;
-    for (auto &expr : expressions_) {
-      exprs.push_back(expr->copy());
-    }
-    return make_unique<CalcLogicalOperator>(std::move(exprs));
+    return make_unique<EmptyLogicalOperator>();
   }
 };

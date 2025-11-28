@@ -45,6 +45,11 @@ public:
 
   Table              *table() const { return table_; }
 
+  unique_ptr<LogicalOperator> clone() const override
+  {
+    return make_unique<DeleteLogicalOperator>(table_);
+  }
+
 private:
   Table *table_ = nullptr;
 };

@@ -38,6 +38,7 @@ enum class OpType
   LOGICALLIMIT,
   LOGICALANALYZE,
   LOGICALEXPLAIN,
+  LOGICALEMPTY,
   // Separation of logical and physical operators
   LOGICALPHYSICALDELIMITER,
 
@@ -59,6 +60,7 @@ enum class OpType
   HASHGROUPBY,
   ANALYZE,
   FILTER,
+  EMPTY,
   SCALARGROUPBY,
   STRINGLIST,
   AGGREGATE_VEC,

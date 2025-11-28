@@ -68,6 +68,8 @@ public:
   void set_predicates(vector<unique_ptr<Expression>> &&exprs);
   auto predicates() -> vector<unique_ptr<Expression>> & { return predicates_; }
 
+  unique_ptr<LogicalOperator> clone() const override;
+
 private:
   Table        *table_ = nullptr;
   ReadWriteMode mode_  = ReadWriteMode::READ_WRITE;

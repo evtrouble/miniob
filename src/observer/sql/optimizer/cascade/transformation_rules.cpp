@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/memo.h"
 #include "sql/operator/logical/predicate_logical_operator.h"
 #include "sql/operator/logical/table_get_logical_operator.h"
+#include "sql/operator/logical/empty_logical_operator.h"
 #include "sql/expr/expression.h"
 
 // -------------------------------------------------------------------------------------------------
@@ -61,11 +62,10 @@ void PredicatePushdownRule::transform(
 
     vector<unique_ptr<Expression>> &child_exprs = conjunction_expr->children();
     for (auto &child_expr : child_exprs) {
-      if (child_expr->type() == ExprType::COMPARISON) {
-        pushdown_exprs.push_back(child_expr->copy());
-      }
+      pushdown_exprs.push_back(child_expr->copy());
     }
   } else if (predicate_expr->type() == ExprType::COMPARISON) {
+    // 检查是否为恒真表达式
     pushdown_exprs.push_back(predicate_expr->copy());
   }
 
@@ -75,17 +75,13 @@ void PredicatePushdownRule::transform(
 
   // 创建新的 TableGetLogicalOperator，包含下推的谓词
   // 合并原有的 predicates 和下推的 predicates
-  vector<unique_ptr<Expression>> existing_predicates;
   for (auto &expr : table_get_oper->predicates()) {
-    existing_predicates.push_back(expr->copy());
-  }
-  for (auto &expr : pushdown_exprs) {
-    existing_predicates.push_back(std::move(expr));
+    pushdown_exprs.push_back(expr->copy());
   }
   
   auto new_table_get = make_unique<TableGetLogicalOperator>(
       table_get_oper->table(), table_get_oper->read_write_mode());
-  new_table_get->set_predicates(std::move(existing_predicates));
+  new_table_get->set_predicates(std::move(pushdown_exprs));
 
   // 返回新的 TableGet，直接替换 Filter（TableGet 是叶子节点，没有子节点）
   transformed->emplace_back(std::move(new_table_get));
@@ -125,26 +121,10 @@ void PredicateRewriteRule::transform(
   if (bool_value == true) {
     // 恒真：删除 Filter，直接返回子节点
     Memo &memo = context->get_memo();
-    Group *child_group = memo.get_group_by_id(input->get_child_group_ids()[0]);
-    GroupExpr *child_gexpr = child_group->get_logical_expression();
-    if (child_gexpr) {
-      // 返回子节点的逻辑表达式
-      // 注意：这里我们需要创建一个新的 GroupExpr，但实际上应该直接使用子节点
-      // 由于 Cascade 架构，我们返回一个空的 transformed，让优化器继续处理子节点
-      // 或者我们可以返回子节点的 operator
-      auto child_op = child_gexpr->get_op();
-      if (child_op->is_logical()) {
-        // 创建新的逻辑算子（复制）
-        // 这里简化处理：如果恒真，我们返回子节点，但需要保持 GroupExpr 结构
-        // 实际上，这个规则应该通过 Memo 来处理，而不是直接返回
-        // 暂时不生成新的表达式，让优化器继续处理
-        return;
-      }
-    }
+    memo.make_alias(input->get_group_id(), input->get_child_group_ids()[0]);
   } else {
-    // 恒假：删除整个子树
-    // 在 Cascade 中，这应该返回一个空的 GroupExpr 或者特殊的算子
-    // 暂时不处理
+    // 在 Cascade 中，这应该返回一个空算子
+    transformed->emplace_back(std::unique_ptr<OperatorNode>(new EmptyLogicalOperator));
     return;
   }
 }

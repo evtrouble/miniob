@@ -34,6 +34,7 @@ string physical_operator_type_name(OpType type)
     case OpType::PROJECTION_VEC: return "PROJECT_VEC";
     case OpType::SEQSCAN_VEC: return "TABLE_SCAN_VEC";
     case OpType::EXPR_VEC: return "EXPR_VEC";
+    case OpType::EMPTY: return "EMPTY";
     default: return "UNKNOWN";
   }
 }

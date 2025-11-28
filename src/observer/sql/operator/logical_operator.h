@@ -43,6 +43,18 @@ public:
   const vector<unique_ptr<Expression>> &expressions() const { return expressions_; }
   static bool can_generate_vectorized_operator(OpType type);
 
+  /**
+   * 这两个函数是为了打印时使用的，比如在explain中
+   */
+  virtual string name() const;
+  virtual string param() const { return ""; }
+
+  /**
+   * @brief 克隆逻辑算子
+   * @return 返回算子的一个深拷贝
+   */
+  virtual unique_ptr<LogicalOperator> clone() const = 0;
+
   virtual uint64_t hash() const override
   {
     uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));

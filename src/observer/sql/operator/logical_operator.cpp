@@ -19,6 +19,7 @@ LogicalOperator::~LogicalOperator() {}
 void LogicalOperator::add_expressions(unique_ptr<Expression> expr) { 
   expressions_.emplace_back(std::move(expr)); 
 }
+
 bool LogicalOperator::can_generate_vectorized_operator(OpType type)
 {
   bool bool_ret = false;
@@ -36,3 +37,25 @@ bool LogicalOperator::can_generate_vectorized_operator(OpType type)
   }
   return bool_ret;
 }
+
+string logical_operator_type_name(OpType type)
+{
+  switch (type) {
+    case OpType::LOGICALGET: return "LOGICAL_GET";
+    case OpType::LOGICALCALCULATE: return "LOGICAL_CALCULATE";
+    case OpType::LOGICALGROUPBY: return "LOGICAL_GROUP_BY";
+    case OpType::LOGICALPROJECTION: return "LOGICAL_PROJECTION";
+    case OpType::LOGICALFILTER: return "LOGICAL_FILTER";
+    case OpType::LOGICALINNERJOIN: return "LOGICAL_INNER_JOIN";
+    case OpType::LOGICALINSERT: return "LOGICAL_INSERT";
+    case OpType::LOGICALDELETE: return "LOGICAL_DELETE";
+    case OpType::LOGICALUPDATE: return "LOGICAL_UPDATE";
+    case OpType::LOGICALLIMIT: return "LOGICAL_LIMIT";
+    case OpType::LOGICALANALYZE: return "LOGICAL_ANALYZE";
+    case OpType::LOGICALEXPLAIN: return "LOGICAL_EXPLAIN";
+    case OpType::LOGICALEMPTY: return "LOGICAL_EMPTY";
+    default: return "UNKNOWN_LOGICAL";
+  }
+}
+
+string LogicalOperator::name() const { return logical_operator_type_name(get_op_type()); }

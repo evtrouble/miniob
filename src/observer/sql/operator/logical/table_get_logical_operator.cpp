@@ -44,3 +44,17 @@ unique_ptr<LogicalProperty> TableGetLogicalOperator::find_log_prop(const vector<
   
   return make_unique<LogicalProperty>(card);
 }
+
+unique_ptr<LogicalOperator> TableGetLogicalOperator::clone() const
+{
+  auto new_op = make_unique<TableGetLogicalOperator>(table_, mode_);
+  // 复制 predicates，过滤掉恒真表达式
+  vector<unique_ptr<Expression>> predicates;
+  for (auto &pred : predicates_) {
+    // 检查是否为恒真表达式
+    Value value;
+    predicates.push_back(pred->copy());
+  }
+  new_op->set_predicates(std::move(predicates));
+  return new_op;
+}
