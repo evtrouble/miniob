@@ -30,7 +30,7 @@ public:
 
   virtual ~PredicatePhysicalOperator() = default;
 
-  OpType               get_op_type() const override { return OpType::FILTER; }
+  OpType get_op_type() const override { return OpType::FILTER; }
 
   virtual uint64_t hash() const override
   {

@@ -28,8 +28,5 @@ public:
 
   OpType get_op_type() const override { return OpType::LOGICALEXPLAIN; }
 
-  unique_ptr<LogicalOperator> clone() const override
-  {
-    return make_unique<ExplainLogicalOperator>();
-  }
+  unique_ptr<LogicalOperator> clone() const override { return make_unique<ExplainLogicalOperator>(); }
 };

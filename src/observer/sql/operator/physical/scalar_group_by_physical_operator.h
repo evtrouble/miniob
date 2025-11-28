@@ -26,7 +26,7 @@ public:
   ScalarGroupByPhysicalOperator(vector<Expression *> &&expressions);
   virtual ~ScalarGroupByPhysicalOperator() = default;
 
-  OpType               get_op_type() const override { return OpType::SCALARGROUPBY; }
+  OpType get_op_type() const override { return OpType::SCALARGROUPBY; }
 
   RC open(Trx *trx) override;
   RC next() override;

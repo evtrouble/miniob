@@ -26,7 +26,7 @@ public:
   CalcLogicalOperator(vector<unique_ptr<Expression>> &&expressions) { expressions_.swap(expressions); }
   virtual ~CalcLogicalOperator() = default;
 
-  OpType              get_op_type() const override { return OpType::LOGICALCALCULATE; }
+  OpType get_op_type() const override { return OpType::LOGICALCALCULATE; }
 
   unique_ptr<LogicalOperator> clone() const override
   {

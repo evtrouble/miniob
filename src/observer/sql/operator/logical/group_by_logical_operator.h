@@ -23,7 +23,7 @@ public:
 
   virtual ~GroupByLogicalOperator() = default;
 
-  OpType              get_op_type() const override { return OpType::LOGICALGROUPBY; }
+  OpType get_op_type() const override { return OpType::LOGICALGROUPBY; }
 
   virtual uint64_t hash() const override
   {
@@ -69,5 +69,5 @@ public:
 
 private:
   vector<unique_ptr<Expression>> &group_by_expressions_ = expressions_;
-  vector<Expression *>           aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
+  vector<Expression *>            aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
 };

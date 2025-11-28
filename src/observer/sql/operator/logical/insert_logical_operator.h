@@ -58,10 +58,7 @@ public:
   const vector<Value> &values() const { return values_; }
   vector<Value>       &values() { return values_; }
 
-  unique_ptr<LogicalOperator> clone() const override
-  {
-    return make_unique<InsertLogicalOperator>(table_, values_);
-  }
+  unique_ptr<LogicalOperator> clone() const override { return make_unique<InsertLogicalOperator>(table_, values_); }
 
 private:
   Table        *table_ = nullptr;

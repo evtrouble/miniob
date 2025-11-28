@@ -121,7 +121,7 @@ public:
    * @param child_log_props A vector containing pointers to child logical properties.
    * @param cm A pointer to the cost model used for calculating the cost.
    * @return The calculated cost as a double.
-   * 
+   *
    * @note Default implementation: uses CPU operation cost based on input cardinality.
    *       If there are child operators, uses the first child's cardinality.
    *       Otherwise, uses the current operator's cardinality.

@@ -35,8 +35,8 @@ public:
 
   string param() const override;
 
-  OpType               get_op_type() const override { return OpType::SEQSCAN; }
-  virtual uint64_t     hash() const override
+  OpType           get_op_type() const override { return OpType::SEQSCAN; }
+  virtual uint64_t hash() const override
   {
     uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
     hash ^= std::hash<int>()(table_->table_id());
@@ -77,7 +77,7 @@ public:
     if (card == 0) {
       card = 1;  // Use minimum cardinality of 1 for cost calculation
     }
-    
+
     // 表扫描需要扫描整个表，IO 成本应该基于全表行数
     // 但当前 prop 中的 card 是过滤后的基数，我们假设全表行数 = card * 10（简单估计）
     // 实际上应该从 Catalog 获取准确的表统计信息
@@ -85,13 +85,13 @@ public:
     if (full_table_rows < card) {
       full_table_rows = card;  // 至少等于过滤后的基数
     }
-    
+
     // 表扫描的代价 = 扫描全表的 IO 成本 + 处理所有行的 CPU 成本
     // 注意：表扫描需要扫描所有行，所以 IO 成本基于全表行数
     double io_cost = cm->io() * full_table_rows;
     // CPU 成本：处理所有行（包括过滤）
     double cpu_cost = cm->cpu_op() * full_table_rows;
-    
+
     return io_cost + cpu_cost;
   }
 

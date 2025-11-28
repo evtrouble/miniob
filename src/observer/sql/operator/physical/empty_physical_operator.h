@@ -42,4 +42,3 @@ public:
 
   RC tuple_schema(TupleSchema &schema) const override { return RC::SUCCESS; }
 };
-

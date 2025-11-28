@@ -33,5 +33,5 @@ public:
   RC handle_request(SQLStageEvent *event);
 
 private:
-  LogicalPlanGenerator logical_plan_generator_;   ///< 根据SQL生成GroupExpr结构
+  LogicalPlanGenerator logical_plan_generator_;  ///< 根据SQL生成GroupExpr结构
 };

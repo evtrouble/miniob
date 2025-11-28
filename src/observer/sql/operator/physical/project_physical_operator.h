@@ -28,7 +28,7 @@ public:
 
   virtual ~ProjectPhysicalOperator() = default;
 
-  OpType               get_op_type() const override { return OpType::PROJECTION; }
+  OpType get_op_type() const override { return OpType::PROJECTION; }
 
   virtual uint64_t hash() const override
   {

@@ -96,11 +96,9 @@ public:
   LogicalProperty *get_logical_prop() { return logical_prop_.get(); }
 
   bool is_alias() const { return alias_target_ != -1; }
-  int get_alias_target() const { return alias_target_; }
+  int  get_alias_target() const { return alias_target_; }
 
-  void set_alias(int target) {
-    alias_target_ = target;
-  }
+  void set_alias(int target) { alias_target_ = target; }
 
   ///< dump the group info, for debug
   void dump() const;

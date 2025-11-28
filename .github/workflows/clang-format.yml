@@ -2,6 +2,14 @@ name: Clang Format Checker
 on:
   pull_request:
     branches: [ "main" ]
+    types: [opened, reopened, synchronize, ready_for_review] 
+    paths-ignore:
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+      - 'README.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
 jobs:
   clang-format-checking:
     runs-on: ubuntu-latest

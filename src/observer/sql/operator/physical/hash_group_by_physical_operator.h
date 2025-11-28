@@ -31,7 +31,7 @@ public:
 
   virtual ~HashGroupByPhysicalOperator() = default;
 
-  OpType               get_op_type() const override { return OpType::HASHGROUPBY; }
+  OpType get_op_type() const override { return OpType::HASHGROUPBY; }
 
   virtual uint64_t hash() const override
   {

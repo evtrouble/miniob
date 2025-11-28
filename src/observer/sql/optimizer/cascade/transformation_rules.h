@@ -56,4 +56,3 @@ private:
   // 简化表达式，返回是否发生变化
   bool simplify_expression(unique_ptr<Expression> &expr) const;
 };
-

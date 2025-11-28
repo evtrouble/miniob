@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 class Memo;
 class RuleSet;
-class CandidateExpression;
+struct CandidateExpression;
 /**
  * OptimizerContext is a class containing pointers to various objects
  * that are required during the entire query optimization process.

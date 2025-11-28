@@ -20,9 +20,9 @@ See the Mulan PSL v2 for more details. */
 enum class RuleType : uint32_t
 {
   // Transformation rules (logical -> logical)
-  PREDICATE_PUSHDOWN,      // 谓词下推
-  PREDICATE_REWRITE,       // 谓词重写（删除恒真/恒假谓词）
-  EXPRESSION_SIMPLIFY,     // 表达式简化
+  PREDICATE_PUSHDOWN,   // 谓词下推
+  PREDICATE_REWRITE,    // 谓词重写（删除恒真/恒假谓词）
+  EXPRESSION_SIMPLIFY,  // 表达式简化
 
   // Don't move this one
   LogicalPhysicalDelimiter,

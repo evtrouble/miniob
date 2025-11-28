@@ -26,7 +26,7 @@ public:
   DeleteLogicalOperator(Table *table);
   virtual ~DeleteLogicalOperator() = default;
 
-  OpType              get_op_type() const override { return OpType::LOGICALDELETE; }
+  OpType get_op_type() const override { return OpType::LOGICALDELETE; }
 
   virtual uint64_t hash() const override
   {
@@ -43,12 +43,9 @@ public:
     return table_->table_id() == other_delete.table()->table_id();
   }
 
-  Table              *table() const { return table_; }
+  Table *table() const { return table_; }
 
-  unique_ptr<LogicalOperator> clone() const override
-  {
-    return make_unique<DeleteLogicalOperator>(table_);
-  }
+  unique_ptr<LogicalOperator> clone() const override { return make_unique<DeleteLogicalOperator>(table_); }
 
 private:
   Table *table_ = nullptr;

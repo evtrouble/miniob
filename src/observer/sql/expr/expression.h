@@ -282,7 +282,7 @@ public:
 
   AttrType value_type() const override { return cast_type_; }
 
-  unique_ptr<Expression> &child() { return child_; }
+  unique_ptr<Expression>       &child() { return child_; }
   const unique_ptr<Expression> &child() const { return child_; }
 
 private:
@@ -319,9 +319,9 @@ public:
    */
   RC eval(Chunk &chunk, vector<uint8_t> &select) override;
 
-  unique_ptr<Expression> &left() { return left_; }
+  unique_ptr<Expression>       &left() { return left_; }
   const unique_ptr<Expression> &left() const { return left_; }
-  unique_ptr<Expression> &right() { return right_; }
+  unique_ptr<Expression>       &right() { return right_; }
   const unique_ptr<Expression> &right() const { return right_; }
 
   /**
@@ -379,7 +379,7 @@ public:
 
   Type conjunction_type() const { return conjunction_type_; }
 
-  vector<unique_ptr<Expression>> &children() { return children_; }
+  vector<unique_ptr<Expression>>       &children() { return children_; }
   const vector<unique_ptr<Expression>> &children() const { return children_; }
 
 private:
@@ -431,9 +431,9 @@ public:
 
   Type arithmetic_type() const { return arithmetic_type_; }
 
-  unique_ptr<Expression> &left() { return left_; }
+  unique_ptr<Expression>       &left() { return left_; }
   const unique_ptr<Expression> &left() const { return left_; }
-  unique_ptr<Expression> &right() { return right_; }
+  unique_ptr<Expression>       &right() { return right_; }
   const unique_ptr<Expression> &right() const { return right_; }
 
 private:
@@ -466,7 +466,7 @@ public:
 
   const char *aggregate_name() const { return aggregate_name_.c_str(); }
 
-  unique_ptr<Expression> &child() { return child_; }
+  unique_ptr<Expression>       &child() { return child_; }
   const unique_ptr<Expression> &child() const { return child_; }
 
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }

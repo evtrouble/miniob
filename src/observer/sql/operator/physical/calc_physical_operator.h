@@ -26,7 +26,7 @@ public:
 
   virtual ~CalcPhysicalOperator() = default;
 
-  OpType               get_op_type() const override { return OpType::CALCULATE; }
+  OpType get_op_type() const override { return OpType::CALCULATE; }
 
   virtual uint64_t hash() const override
   {

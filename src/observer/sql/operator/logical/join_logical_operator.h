@@ -27,8 +27,8 @@ public:
   JoinLogicalOperator()          = default;
   virtual ~JoinLogicalOperator() = default;
 
-  void                add_predicate_op(LogicalOperator *predicate_op) { predicate_op_ = predicate_op; }
-  auto                predicates() -> Expression *
+  void add_predicate_op(LogicalOperator *predicate_op) { predicate_op_ = predicate_op; }
+  auto predicates() -> Expression *
   {
     if (predicate_op_ != nullptr && predicate_op_->expressions().size() == 1) {
       return predicate_op_->expressions()[0].get();
@@ -103,6 +103,6 @@ public:
   }
 
 private:
-  LogicalOperator                    *predicate_op_ = nullptr;
+  LogicalOperator                     *predicate_op_    = nullptr;
   std::vector<unique_ptr<Expression>> &join_predicates_ = expressions_;
 };

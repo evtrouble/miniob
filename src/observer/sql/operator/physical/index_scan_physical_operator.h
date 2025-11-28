@@ -84,7 +84,7 @@ public:
     if (card == 0) {
       card = 1;  // Use minimum cardinality of 1 for cost calculation
     }
-    
+
     // 索引扫描的代价 = 索引查找成本 + IO * 匹配行数 + CPU * 匹配行数
     // 索引扫描的优势：
     // - 基数更小（只访问匹配的行，而不是全表扫描）
@@ -98,7 +98,7 @@ public:
     double io_cost = cm->io() * card;
     // CPU 成本：处理匹配的行
     double cpu_cost = cm->cpu_op() * card;
-    
+
     return index_lookup_cost + io_cost + cpu_cost;
   }
 

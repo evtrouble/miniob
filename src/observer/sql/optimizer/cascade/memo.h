@@ -38,7 +38,7 @@ public:
 
   Group *get_group_by_id(int id) const
   {
-    Group* g = groups_[id].get();
+    Group *g = groups_[id].get();
     ASSERT(id >= 0 && static_cast<size_t>(id) < groups_.size(), "group_id out of bounds");
     while (g && g->is_alias()) {
       g = groups_[g->get_alias_target()].get();
@@ -46,9 +46,7 @@ public:
     return g;
   }
 
-  void make_alias(int src, int target) {
-    groups_[src]->set_alias(target);
-  }
+  void make_alias(int src, int target) { groups_[src]->set_alias(target); }
 
   void dump() const;
 

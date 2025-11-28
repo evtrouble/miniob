@@ -38,10 +38,10 @@ public:
   bool is_physical() const override { return false; }
   bool is_logical() const override { return true; }
 
-  void        add_expressions(unique_ptr<Expression> expr);
-  auto        expressions() -> vector<unique_ptr<Expression>>        &{ return expressions_; }
+  void                                  add_expressions(unique_ptr<Expression> expr);
+  auto                                  expressions() -> vector<unique_ptr<Expression>>                                  &{ return expressions_; }
   const vector<unique_ptr<Expression>> &expressions() const { return expressions_; }
-  static bool can_generate_vectorized_operator(OpType type);
+  static bool                           can_generate_vectorized_operator(OpType type);
 
   /**
    * 这两个函数是为了打印时使用的，比如在explain中
