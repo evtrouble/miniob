@@ -14,18 +14,15 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/group_expr.h"
 #include "common/log/log.h"
 #include "sql/expr/expression.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
 
 double CostModel::calculate_cost(Memo *memo,
                                GroupExpr *gexpr)
 {
   auto op = gexpr->get_op();
+  // Group constructor ensures logical_prop_ is never nullptr
   auto log_prop = memo->get_group_by_id(gexpr->get_group_id())->get_logical_prop();
-  
-  // 如果 log_prop 为 nullptr，使用默认值
-  if (log_prop == nullptr) {
-    static LogicalProperty default_prop(0);
-    log_prop = &default_prop;
-  }
   
   int arity = gexpr->get_children_groups_size();
   vector<LogicalProperty*> child_log_props;
@@ -33,22 +30,23 @@ double CostModel::calculate_cost(Memo *memo,
     auto child_group_id = gexpr->get_child_group_id(i);
     auto child_gexpr = memo->get_group_by_id(child_group_id);
     auto child_prop = child_gexpr->get_logical_prop();
-    // 如果 child_prop 为 nullptr，使用默认值
-    if (child_prop == nullptr) {
-      static LogicalProperty default_child_prop(0);
-      child_prop = &default_child_prop;
-    }
     child_log_props.push_back(child_prop);
   }
   double cost = op->calculate_cost(log_prop, child_log_props, this);
-  LOG_INFO("CostModel: op_type=%d, group_id=%d, prop_card=%d, arity=%d, cost=%.6f",
-           static_cast<int>(op->get_op_type()),
+  string op_name = "UNKNOWN";
+  if (op->is_logical()) {
+    op_name = static_cast<const LogicalOperator*>(op)->name();
+  } else if (op->is_physical()) {
+    op_name = static_cast<const PhysicalOperator*>(op)->name();
+  }
+  LOG_DEBUG("CostModel: op_name=%s, group_id=%d, prop_card=%d, arity=%d, cost=%.6f",
+           op_name.c_str(),
            gexpr->get_group_id(),
            log_prop ? log_prop->get_card() : 0,
            arity,
            cost);
   if (arity > 0 && !child_log_props.empty() && child_log_props[0]) {
-    LOG_INFO("CostModel: first_child_card=%d", child_log_props[0]->get_card());
+    LOG_DEBUG("CostModel: first_child_card=%d", child_log_props[0]->get_card());
   }
   return cost;
 

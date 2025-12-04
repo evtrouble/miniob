@@ -82,7 +82,7 @@ void LogicalGetToPhysicalIndexScan::transform(
   vector<unique_ptr<Expression>> &predicates = table_get_oper->predicates();
   Table *table = table_get_oper->table();
 
-  // 查找可以用于索引查找的表达式
+  // Find expressions that can be used for index lookup
   Index     *index      = nullptr;
   ValueExpr *left_value_expr  = nullptr;
   ValueExpr *right_value_expr = nullptr;
@@ -95,15 +95,13 @@ void LogicalGetToPhysicalIndexScan::transform(
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
       comp_op = comparison_expr->comp();
       
-      // 支持等值查询和范围查询
-      // NOT_EQUAL 不支持索引扫描（需要扫描所有不等于的值）
-      if (comp_op == NOT_EQUAL) {
+      if (comp_op != EQUAL_TO) {
         continue;
       }
 
       unique_ptr<Expression> &left_expr  = comparison_expr->left();
       unique_ptr<Expression> &right_expr = comparison_expr->right();
-      // 左右比较的一边最少是一个值
+      // At least one side must be a value
       if (left_expr->type() != ExprType::VALUE && right_expr->type() != ExprType::VALUE) {
         continue;
       }
@@ -124,7 +122,7 @@ void LogicalGetToPhysicalIndexScan::transform(
       }
 
       const Field &field = field_expr->field();
-      // 检查字段是否属于当前表
+      // Check if field belongs to current table
       if (field.table() != table) {
         continue;
       }
@@ -134,22 +132,19 @@ void LogicalGetToPhysicalIndexScan::transform(
         continue;
       }
       
-      // 找到索引，根据比较操作符设置范围
+      // Found index, set range based on comparison operator
       index = found_index;
+
+      left_value_expr = value_expr;
+      right_value_expr = value_expr;
+      left_inclusive = true;
+      right_inclusive = true;
       
-      if (comp_op == EQUAL_TO) {
-        // 等值查询：left_value = right_value = value
-        left_value_expr = value_expr;
-        right_value_expr = value_expr;
-        left_inclusive = true;
-        right_inclusive = true;
-      } 
-      
-      break;  // 找到第一个可用的索引查询就退出
+      break;  // Exit after finding first usable index query
     }
   }
 
-  // 只有在找到索引时才生成 IndexScan
+  // Only generate IndexScan if index is found
   if (index != nullptr) {
     vector<unique_ptr<Expression>> phys_preds;
     for (auto &pred : predicates) {
@@ -336,8 +331,8 @@ void LogicalInnerJoinToHashJoin::transform(
 {
   ASSERT(input->get_children_groups_size() == 2, "join should have 2 children");
 
-  // TODO: HashJoinPhysicalOperator 目前是空的，需要实现
-  // 暂时不生成 HashJoin，等实现后再启用
+  // TODO: HashJoinPhysicalOperator is currently empty, needs implementation
+  // Temporarily disabled, enable after implementation
   // auto hash_join_oper = make_unique<HashJoinPhysicalOperator>();
   // transformed->emplace_back(std::move(hash_join_oper), input->get_child_group_ids());
 }
@@ -359,7 +354,7 @@ void LogicalGroupByToAggregation::transform(
   auto groupby_oper = static_cast<GroupByLogicalOperator *>(input->get_op());
   vector<unique_ptr<Expression>> &group_by_expressions = groupby_oper->group_by_expressions();
   
-  // 只有 group_by_expressions 为空时才生成 ScalarGroupBy
+  // Only generate ScalarGroupBy when group_by_expressions is empty
   if (group_by_expressions.empty()) {
     vector<Expression *> aggregate_exprs;
     for (auto expr : groupby_oper->aggregate_expressions()) {
@@ -387,7 +382,7 @@ void LogicalGroupByToHashGroupBy::transform(
   auto groupby_oper = static_cast<GroupByLogicalOperator *>(input->get_op());
   vector<unique_ptr<Expression>> &group_by_expressions = groupby_oper->group_by_expressions();
   
-  // 只有 group_by_expressions 不为空时才生成 HashGroupBy
+  // Only generate HashGroupBy when group_by_expressions is not empty
   if (!group_by_expressions.empty()) {
     vector<unique_ptr<Expression>> group_by_exprs;
     for (auto &expr : group_by_expressions) {

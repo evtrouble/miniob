@@ -67,10 +67,10 @@ private:
   {
     bool operator()(GroupExpr *t1, GroupExpr *t2) const
     {
-      if (t1 && t2) {  // 确保非空检查
+      if (t1 && t2) {
         return (*t1 == *t2);
       }
-      return false;  // 防止空指针解引用
+      return false;
     }
   };
 

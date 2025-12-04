@@ -54,8 +54,8 @@ enum class RuleType : uint32_t
  */
 enum class RuleSetName : uint32_t
 {
-  LOGICAL_TRANSFORMATION,  // 逻辑转换规则（logical -> logical）
-  PHYSICAL_IMPLEMENTATION  // 物理实现规则（logical -> physical）
+  LOGICAL_TRANSFORMATION,  // logical -> logical
+  PHYSICAL_IMPLEMENTATION  // logical -> physical
 };
 
 /**
@@ -167,25 +167,22 @@ public:
 
   bool operator<(const RuleWithPromise &r) const
   {
-    // 首先比较 promise，promise 高的先执行
+    // Compare promise first, higher promise executes first
     if (promise_ != r.promise_) {
       return promise_ < r.promise_;
     }
-    // promise 相同时，比较 rule type
-    // 由于使用栈（LIFO），后入栈的先执行，所以 type 值大的应该排在后面（后入栈）
-    // 执行顺序应该是：EXPRESSION_SIMPLIFY (2) -> PREDICATE_REWRITE (1) -> PREDICATE_PUSHDOWN (0)
-    // 排序后应该是：PREDICATE_PUSHDOWN (0) 在前面，EXPRESSION_SIMPLIFY (2) 在后面
-    // 所以应该按 type 升序排序（小的在前，大的在后）
+    // Using stack (LIFO), higher type values are pushed later and execute first
+    // Execution order: EXPRESSION_SIMPLIFY (2) -> PREDICATE_REWRITE (1) -> PREDICATE_PUSHDOWN (0)
     return static_cast<uint32_t>(rule_->get_type()) < static_cast<uint32_t>(r.rule_->get_type());
   }
 
   bool operator>(const RuleWithPromise &r) const
   {
-    // 首先比较 promise，promise 高的先执行
+    // Compare promise first, higher promise executes first
     if (promise_ != r.promise_) {
       return promise_ > r.promise_;
     }
-    // promise 相同时，比较 rule type，按 type 降序排序
+    // When promise is equal, compare rule type in descending order
     return static_cast<uint32_t>(rule_->get_type()) > static_cast<uint32_t>(r.rule_->get_type());
   }
 

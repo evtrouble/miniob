@@ -33,18 +33,16 @@ OptimizerContext::~OptimizerContext() {
 
 bool OptimizerContext::record_node_into_group(unique_ptr<OperatorNode> node, GroupExpr **gexpr,
                                   int target_group) {
-  // 此方法仅用于没有子节点的叶子节点（如TableGet, Calc, Insert等）
-  // 对于有子节点的情况，应该使用record_node_into_group(CandidateExpression &candidate, ...)
-  // 注意：node的所有权会被转移到GroupExpr中
-  // 如果节点已存在，memo_->insert_expression会删除new_gexpr，从而释放node
+  // Note: ownership of node is transferred to GroupExpr
+  // If node already exists, memo_->insert_expression will delete new_gexpr, releasing node
   std::vector<int> empty_child_groups;
   auto new_gexpr = new GroupExpr(std::move(node), std::move(empty_child_groups));
   auto ptr = memo_->insert_expression(new_gexpr, target_group);
   ASSERT(ptr, "Root of expr should not fail insertion");
 
   (*gexpr) = ptr;
-  // 如果返回的ptr不是new_gexpr，说明节点已存在，new_gexpr会被删除，node也会被释放
-  // 如果返回的ptr是new_gexpr，说明是新插入的，node的所有权已转移到GroupExpr
+  // If returned ptr is not new_gexpr, node already exists, new_gexpr will be deleted and node released
+  // If returned ptr is new_gexpr, it's newly inserted, ownership of node has been transferred to GroupExpr
   return (ptr == new_gexpr);
 }
 

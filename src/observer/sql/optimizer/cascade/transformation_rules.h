@@ -16,7 +16,7 @@ class Expression;
 
 /**
  * Rule transforms Filter(TableGet) -> TableGet with predicates
- * 谓词下推：将 Filter 中的谓词下推到 TableGet 算子中
+ * Pushes predicates from Filter down to TableGet operator
  */
 class PredicatePushdownRule : public Rule
 {
@@ -29,7 +29,7 @@ public:
 
 /**
  * Rule transforms Filter(Filter(...)) -> Filter(...) or removes Filter
- * 谓词重写：删除恒真/恒假的谓词
+ * Removes constant true/false predicates
  */
 class PredicateRewriteRule : public Rule
 {
@@ -42,7 +42,7 @@ public:
 
 /**
  * Rule simplifies expressions in logical operators
- * 表达式简化：简化比较表达式和联结表达式
+ * Simplifies comparison and conjunction expressions
  */
 class ExpressionSimplifyRule : public Rule
 {
@@ -53,6 +53,6 @@ public:
       GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 
 private:
-  // 简化表达式，返回是否发生变化
+  // Simplify expression, returns true if changed
   bool simplify_expression(unique_ptr<Expression> &expr) const;
 };

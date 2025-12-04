@@ -30,7 +30,7 @@ RuleSet::RuleSet()
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalDeleteToDelete());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalPredicateToPredicate());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalInnerJoinToNestedLoopJoin());
-  // TODO: 等 HashJoinPhysicalOperator 实现后再启用
+  // TODO: Enable after HashJoinPhysicalOperator is implemented
   // add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalInnerJoinToHashJoin());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalGroupByToAggregation());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalGroupByToHashGroupBy());

@@ -39,7 +39,7 @@ void PredicatePushdownRule::transform(
     return;
   }
 
-  // 获取子 GroupExpr
+  // Get child GroupExpr
   Memo &memo = context->get_memo();
   Group *child_group = memo.get_group_by_id(input->get_child_group_ids()[0]);
   GroupExpr *child_gexpr = child_group->get_logical_expression();
@@ -52,11 +52,11 @@ void PredicatePushdownRule::transform(
   unique_ptr<Expression> &predicate_expr = expressions.front();
   vector<unique_ptr<Expression>> pushdown_exprs;
 
-  // 提取可以下推的表达式
+  // Extract pushable expressions
   if (predicate_expr->type() == ExprType::CONJUNCTION) {
     ConjunctionExpr *conjunction_expr = static_cast<ConjunctionExpr *>(predicate_expr.get());
     if (conjunction_expr->conjunction_type() == ConjunctionExpr::Type::OR) {
-      // OR 操作太复杂，暂不支持
+      // OR operations are too complex, not supported yet
       return;
     }
 
@@ -65,7 +65,7 @@ void PredicatePushdownRule::transform(
       pushdown_exprs.push_back(child_expr->copy());
     }
   } else if (predicate_expr->type() == ExprType::COMPARISON) {
-    // 检查是否为恒真表达式
+    // Check if it's a constant expression
     pushdown_exprs.push_back(predicate_expr->copy());
   }
 
@@ -73,8 +73,8 @@ void PredicatePushdownRule::transform(
     return;
   }
 
-  // 创建新的 TableGetLogicalOperator，包含下推的谓词
-  // 合并原有的 predicates 和下推的 predicates
+  // Create new TableGetLogicalOperator with pushed predicates
+  // Merge existing predicates with pushed predicates
   for (auto &expr : table_get_oper->predicates()) {
     pushdown_exprs.push_back(expr->copy());
   }
@@ -83,7 +83,7 @@ void PredicatePushdownRule::transform(
       table_get_oper->table(), table_get_oper->read_write_mode());
   new_table_get->set_predicates(std::move(pushdown_exprs));
 
-  // 返回新的 TableGet，直接替换 Filter（TableGet 是叶子节点，没有子节点）
+  // Return new TableGet, replacing Filter (TableGet is a leaf node with no children)
   transformed->emplace_back(std::move(new_table_get));
 }
 
@@ -114,16 +114,16 @@ void PredicateRewriteRule::transform(
     return;
   }
 
-  // 检查是否为恒真或恒假
+  // Check if it's constant true or false
   auto value_expr = static_cast<ValueExpr *>(expr.get());
   bool bool_value = value_expr->get_value().get_boolean();
 
   if (bool_value == true) {
-    // 恒真：删除 Filter，直接返回子节点
+    // Constant true: remove Filter, return child directly
     Memo &memo = context->get_memo();
     memo.make_alias(input->get_group_id(), input->get_child_group_ids()[0]);
   } else {
-    // 在 Cascade 中，这应该返回一个空算子
+    // Constant false: return empty operator in Cascade
     transformed->emplace_back(std::unique_ptr<OperatorNode>(new EmptyLogicalOperator));
     return;
   }
@@ -167,7 +167,7 @@ bool ExpressionSimplifyRule::simplify_expression(unique_ptr<Expression> &expr) c
 {
   bool changed = false;
 
-  // 简化比较表达式
+  // Simplify comparison expressions
   if (expr->type() == ExprType::COMPARISON) {
     Value value;
     ComparisonExpr *cmp_expr = static_cast<ComparisonExpr *>(expr.get());
@@ -177,19 +177,19 @@ bool ExpressionSimplifyRule::simplify_expression(unique_ptr<Expression> &expr) c
     }
   }
 
-  // 简化联结表达式
+  // Simplify conjunction expressions
   if (expr->type() == ExprType::CONJUNCTION) {
     auto conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
     vector<unique_ptr<Expression>> &child_exprs = conjunction_expr->children();
 
-    // 先简化子表达式
+    // Simplify child expressions first
     for (auto &child_expr : child_exprs) {
       if (simplify_expression(child_expr)) {
         changed = true;
       }
     }
 
-    // 检查是否有可以删除的常量表达式
+    // Check for removable constant expressions
     for (auto iter = child_exprs.begin(); iter != child_exprs.end();) {
       bool constant_value = false;
       if ((*iter)->type() == ExprType::VALUE && (*iter)->value_type() == AttrType::BOOLEANS) {
@@ -224,7 +224,7 @@ bool ExpressionSimplifyRule::simplify_expression(unique_ptr<Expression> &expr) c
       ++iter;
     }
 
-    // 如果只有一个子表达式，直接替换
+    // If only one child expression, replace directly
     if (child_exprs.size() == 1) {
       expr = std::move(child_exprs.front());
       changed = true;

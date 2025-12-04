@@ -11,6 +11,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/group.h"
 #include "sql/optimizer/cascade/group_expr.h"
 #include "sql/optimizer/cascade/memo.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
+#include "common/log/log.h"
 
 Group::Group(int id, GroupExpr* expr, Memo *memo)
       : id_(id), winner_(std::make_tuple(numeric_limits<double>::max(), nullptr)), has_explored_(false)
@@ -29,9 +32,9 @@ Group::Group(int id, GroupExpr* expr, Memo *memo)
 		logical_prop_ = (expr->get_op())->find_log_prop(input_prop);
   }
   
-  // 如果 find_log_prop 返回 nullptr，创建一个默认的 LogicalProperty
+  // Create default LogicalProperty if find_log_prop returns nullptr
   if (logical_prop_ == nullptr) {
-    logical_prop_ = make_unique<LogicalProperty>(1000);
+    logical_prop_ = make_unique<LogicalProperty>(LogicalProperty::DEFAULT_CARDINALITY);
   }
 }
 Group::~Group() {
@@ -78,12 +81,16 @@ void Group::dump() const
            id_, logical_expressions_.size(), physical_expressions_.size(), physical_expressions_.size());
 
   for (size_t i = 0; i < logical_expressions_.size(); i++) {
-    LOG_TRACE("  Logical[%lu]: op_type=%d", i, static_cast<int>(logical_expressions_[i]->get_op()->get_op_type()));
+    auto op = logical_expressions_[i]->get_op();
+    string op_name = op->is_logical() ? static_cast<const LogicalOperator*>(op)->name() : "UNKNOWN";
+    LOG_TRACE("  Logical[%lu]: op_name=%s", i, op_name.c_str());
   }
   for (size_t i = 0; i < physical_expressions_.size(); i++) {
-    LOG_TRACE("  Physical[%lu]: op_type=%d, cost=%.6f", 
+    auto op = physical_expressions_[i]->get_op();
+    string op_name = op->is_physical() ? static_cast<const PhysicalOperator*>(op)->name() : "UNKNOWN";
+    LOG_TRACE("  Physical[%lu]: op_name=%s, cost=%.6f", 
               i, 
-              static_cast<int>(physical_expressions_[i]->get_op()->get_op_type()),
+              op_name.c_str(),
               physical_expressions_[i]->get_cost());
   }
 }

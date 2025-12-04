@@ -56,15 +56,13 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
 
   // 使用Cascade优化器
   unique_ptr<PhysicalOperator> physical_operator;
-  // if (sql_event->session_event()->session()->use_cascade()) {
   rc = optimizer.optimize(root_gexpr, physical_operator);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to optimize logical plan. rc=%s", strrc(rc));
     return rc;
   }
   string phys_plan_str = OptimizerUtils::dump_physical_plan(physical_operator);
-
-  LOG_INFO("cascade physical plan:\n%s", phys_plan_str.c_str());
+  LOG_DEBUG("cascade physical plan:\n%s", phys_plan_str.c_str());
   sql_event->set_operator(std::move(physical_operator));
   return rc;
 }

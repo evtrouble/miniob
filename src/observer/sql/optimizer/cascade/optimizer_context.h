@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/pending_tasks.h"
 #include "sql/operator/operator_node.h"
 #include "sql/optimizer/cascade/property_set.h"
+#include "session/session.h"
 
 class Memo;
 class RuleSet;
@@ -47,15 +48,20 @@ public:
     task_pool_ = pending_tasks;
   }
 
-  void record_operator_node_in_memo(unique_ptr<OperatorNode> &&node);
-
-  // 记录没有子节点的OperatorNode到memo中（用于叶子节点，如TableGet, Calc, Insert等）
+  // Record OperatorNode without children into memo (for leaf nodes like TableGet, Calc, Insert)
   bool record_node_into_group(unique_ptr<OperatorNode> node, GroupExpr **gexpr, int target_group = -1);
 
-  // 记录有子节点的CandidateExpression到memo中（子节点通过child_group_ids指定）
+  // Record CandidateExpression with children into memo (children specified by child_group_ids)
   bool record_node_into_group(CandidateExpression &candidate, GroupExpr **gexpr, int target_group = -1);
 
   double get_cost_upper_bound() const { return cost_upper_bound_; }
+
+  void configure(Session *session) {
+    enable_cbo_ = session->use_cascade();
+    // rule_set_->configure(session);  // Configure rule set
+  }
+  
+  bool use_cbo() const { return enable_cbo_; }
 
 private:
   Memo         *memo_;
@@ -63,4 +69,5 @@ private:
   CostModel     cost_model_;
   PendingTasks *task_pool_;
   double        cost_upper_bound_;
+  bool enable_cbo_ = false;
 };

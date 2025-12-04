@@ -22,12 +22,9 @@ PredicateLogicalOperator::PredicateLogicalOperator(unique_ptr<Expression> expres
 
 unique_ptr<LogicalProperty> PredicateLogicalOperator::find_log_prop(const vector<LogicalProperty *> &log_props)
 {
-  if (log_props.empty() || log_props[0] == nullptr) {
-    // 如果没有输入属性，返回默认值
-    return make_unique<LogicalProperty>(1000);
-  }
+  // PredicateLogicalOperator should have exactly one child with valid logical property
+  ASSERT(!log_props.empty() && log_props[0] != nullptr, "PredicateLogicalOperator should have input property");
   
-  // 获取输入 cardinality
   int input_card = log_props[0]->get_card();
   
   // 简单估计：谓词过滤会减少约 10% 的行数（实际应该根据谓词类型和选择性来估计）

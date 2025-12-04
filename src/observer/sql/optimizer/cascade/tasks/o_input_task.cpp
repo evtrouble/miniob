@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/group_expr.h"
 #include "sql/optimizer/cascade/memo.h"
 #include "common/log/log.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
 
 RC OptimizeInputs::perform()
 {
@@ -26,8 +28,15 @@ RC OptimizeInputs::perform()
     double local_cost = context_->get_cost_model()->calculate_cost(
           &context_->get_memo(), group_expr_);
     cur_total_cost_ += local_cost;
-    LOG_INFO("OptimizeInputs: group_expr op_type=%d, group_id=%d, local_cost=%.6f, cur_total_cost=%.6f",
-             static_cast<int>(group_expr_->get_op()->get_op_type()),
+    auto op = group_expr_->get_op();
+    string op_name = "UNKNOWN";
+    if (op->is_logical()) {
+      op_name = static_cast<const LogicalOperator*>(op)->name();
+    } else if (op->is_physical()) {
+      op_name = static_cast<const PhysicalOperator*>(op)->name();
+    }
+    LOG_DEBUG("OptimizeInputs: group_expr op_name=%s, group_id=%d, local_cost=%.6f, cur_total_cost=%.6f",
+             op_name.c_str(),
              group_expr_->get_group_id(),
              local_cost,
              cur_total_cost_);
@@ -40,7 +49,7 @@ RC OptimizeInputs::perform()
     auto child_best_expr = child_group->get_winner();
     if (child_best_expr != nullptr) {
       cur_total_cost_ += child_best_expr->get_cost();
-      LOG_INFO("cur_total_cost_ = %f", cur_total_cost_);
+      LOG_DEBUG("cur_total_cost_ = %f", cur_total_cost_);
       if (cur_total_cost_ > context_->get_cost_upper_bound()) break;
     } else {  // we haven't optimized child group
       push_task(new OptimizeInputs(this));

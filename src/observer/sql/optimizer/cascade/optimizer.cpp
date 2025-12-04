@@ -11,6 +11,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/optimizer.h"
 #include "sql/optimizer/cascade/tasks/o_group_task.h"
 #include "sql/optimizer/cascade/memo.h"
+#include "sql/operator/physical_operator.h"
+#include "common/log/log.h"
 
 RC Optimizer::optimize(GroupExpr *root_gexpr, std::unique_ptr<PhysicalOperator> &physical_operator)
 {
@@ -46,7 +48,7 @@ RC Optimizer::choose_best_plan(int root_group_id, std::unique_ptr<PhysicalOperat
   }
   auto winner_contents = winner->release_op();
   PhysicalOperator* winner_phys = static_cast<PhysicalOperator*>(winner_contents);
-  LOG_TRACE("winner: %d", winner_phys->get_op_type());
+  LOG_TRACE("winner: %s", winner_phys->name().c_str());
   for (const auto& child : winner->get_child_group_ids()) {
     std::unique_ptr<PhysicalOperator> child_operator;
     RC rc = choose_best_plan(child, child_operator);

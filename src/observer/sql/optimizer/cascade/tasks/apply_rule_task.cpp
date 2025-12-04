@@ -38,7 +38,7 @@ RC ApplyRule::perform()
         push_task(new OptimizeInputs(new_gexpr, context_));
       }
     } else {
-      LOG_INFO("record_operator_node_into_group not insert new expr");
+      LOG_DEBUG("record_operator_node_into_group not insert new expr");
       new_gexpr->dump();
     }
   }
