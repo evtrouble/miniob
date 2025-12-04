@@ -941,8 +941,8 @@ RC MysqlCommunicator::send_result_rows(SessionEvent *event, SqlResult *sql_resul
 {
   RC rc = RC::SUCCESS;
 
-  vector<char> packet;
-  packet.resize(4 * 1024 * 1024);  // TODO warning: length cannot be fix
+  // TODO warning: length cannot be fix
+  PacketBuffer packet(4 * 1024 * 1024);
 
   int    affected_rows = 0;
   if (event->session()->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR
@@ -971,7 +971,7 @@ RC MysqlCommunicator::send_result_rows(SessionEvent *event, SqlResult *sql_resul
   return rc;
 }
 
-RC MysqlCommunicator::write_tuple_result(SqlResult *sql_result, vector<char> &packet, int &affected_rows, bool &need_disconnect)
+RC MysqlCommunicator::write_tuple_result(SqlResult *sql_result, PacketBuffer &packet, int &affected_rows, bool &need_disconnect)
 {
   Tuple *tuple         = nullptr;
   RC rc = RC::SUCCESS;
@@ -1016,7 +1016,7 @@ RC MysqlCommunicator::write_tuple_result(SqlResult *sql_result, vector<char> &pa
   }
   return rc;
 }
-RC MysqlCommunicator::write_chunk_result(SqlResult *sql_result, vector<char> &packet, int &affected_rows, bool &need_disconnect)
+RC MysqlCommunicator::write_chunk_result(SqlResult *sql_result, PacketBuffer &packet, int &affected_rows, bool &need_disconnect)
 {
   Chunk chunk;
   RC rc = RC::SUCCESS;
