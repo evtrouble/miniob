@@ -34,12 +34,13 @@ public:
   {
     const char *strings[] = {"show tables;",
         "desc `table name`;",
-        "create table `table name` (`column name` `column type`, ... [, primary key (`columns`)]) [storage format=`format`];",
+        "create table `table name` (`column name` `column type`, ... [, primary key (`columns`)]) [storage "
+        "format=`format`];",
         "create index `index name` on `table` (`column`);",
         "insert into `table` values(`value1`,`value2`);",
         "update `table` set `column`=`value` [where `column`=`value`];",
         "delete from `table` [where `column`=`value`];",
-        "select [ * | `columns` ] from `table` [where `column`=`value`] [group by `columns`];", 
+        "select [ * | `columns` ] from `table` [where `column`=`value`] [group by `columns`];",
         "drop table `table name`;",
         "drop index `index name` on `table`;",
         "set `variable`=`value`;",

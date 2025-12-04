@@ -65,7 +65,17 @@ bool Group::set_expr_cost(GroupExpr *expr, double cost) {
   return false;
 }
 
-GroupExpr *Group::get_winner() {
+GroupExpr *Group::get_winner(bool use_cbo) {
+  if (!use_cbo) {
+    // CBO disabled: return the last physical operator
+    // (the one that has been transformed by the most transformation rules)
+    if (!physical_expressions_.empty()) {
+      return physical_expressions_.back();
+    }
+    return nullptr;
+  }
+  
+  // CBO enabled: return the expression with the lowest cost
   return std::get<1>(winner_);
 }
 

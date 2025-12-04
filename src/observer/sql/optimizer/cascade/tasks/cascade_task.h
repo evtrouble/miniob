@@ -26,7 +26,8 @@ enum class CascadeTaskType
   OPTIMIZE_EXPR,
   EXPLORE_GROUP,
   APPLY_RULE,
-  OPTIMIZE_INPUTS
+  OPTIMIZE_INPUTS,
+  OPTIMIZE_RBO_GROUP
 };
 
 class CascadeTask

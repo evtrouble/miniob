@@ -58,9 +58,10 @@ public:
   bool set_expr_cost(GroupExpr *expr, double cost);
 
   /**
-   * @return The expression with the lowest cost.
+   * @return The expression with the lowest cost (when CBO enabled),
+   *         or the last physical expression (when CBO disabled).
    */
-  GroupExpr *get_winner();
+  GroupExpr *get_winner(bool use_cbo = false);
 
   /**
    * @brief Gets the logical expressions in the group.

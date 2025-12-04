@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/implementation_rules.h"
 #include "sql/optimizer/cascade/transformation_rules.h"
 #include "sql/optimizer/cascade/group_expr.h"
+#include <algorithm>
 
 RuleSet::RuleSet()
 {
@@ -19,6 +20,10 @@ RuleSet::RuleSet()
   add_rule(RuleSetName::LOGICAL_TRANSFORMATION, new PredicatePushdownRule());
   add_rule(RuleSetName::LOGICAL_TRANSFORMATION, new PredicateRewriteRule());
   add_rule(RuleSetName::LOGICAL_TRANSFORMATION, new ExpressionSimplifyRule());
+  auto &trans_rules = get_rules_by_name(RuleSetName::LOGICAL_TRANSFORMATION);
+  std::sort(trans_rules.begin(), trans_rules.end(), [](Rule* a, Rule* b){
+    return static_cast<int>(a->get_type()) > static_cast<int>(b->get_type());
+  });
 
   // Implementation rules (logical -> physical)
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalProjectionToProjection());
@@ -35,4 +40,9 @@ RuleSet::RuleSet()
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalGroupByToAggregation());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalGroupByToHashGroupBy());
   add_rule(RuleSetName::PHYSICAL_IMPLEMENTATION, new LogicalEmptyToEmpty());
+
+  auto &impl_rules = get_rules_by_name(RuleSetName::PHYSICAL_IMPLEMENTATION);
+  std::sort(impl_rules.begin(), impl_rules.end(), [](Rule* a, Rule* b){
+    return static_cast<int>(a->get_type()) > static_cast<int>(b->get_type());
+  });
 }

@@ -10,6 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/optimizer/cascade/optimizer.h"
 #include "sql/optimizer/cascade/tasks/o_group_task.h"
+#include "sql/optimizer/cascade/tasks/o_rbo_group_task.h"
 #include "sql/optimizer/cascade/memo.h"
 #include "sql/operator/physical_operator.h"
 #include "common/log/log.h"
@@ -41,7 +42,7 @@ RC Optimizer::choose_best_plan(int root_group_id, std::unique_ptr<PhysicalOperat
   }
 
   // Choose the best physical plan
-  auto winner = root_group->get_winner();
+  auto winner = root_group->get_winner(context_->use_cbo());
   if (winner == nullptr) {
     LOG_WARN("No winner found in group %d", root_group_id);
     return RC::OPTIMIZER_MEMO_INSERT_FAILED;
@@ -67,7 +68,11 @@ RC Optimizer::optimize_loop(int root_group_id)
   context_->set_task_pool(task_stack);
 
   Memo &memo = context_->get_memo();
-  task_stack->push(new OptimizeGroup(memo.get_group_by_id(root_group_id), context_.get()));
+  if (context_->use_cbo()) {
+    task_stack->push(new OptimizeGroup(memo.get_group_by_id(root_group_id), context_.get()));
+  } else {
+    task_stack->push(new OptimizeRBOGroup(memo.get_group_by_id(root_group_id), context_.get()));
+  }
 
   return execute_task_stack(task_stack, root_group_id, context_.get());
 }
@@ -75,11 +80,9 @@ RC Optimizer::optimize_loop(int root_group_id)
 RC Optimizer::execute_task_stack(PendingTasks *task_stack, int root_group_id, OptimizerContext *root_context)
 {
   RC rc = RC::SUCCESS;
-  while (!task_stack->empty()) {
+  while (OB_SUCC(rc) && !task_stack->empty()) {
     auto task = task_stack->pop();
-    if(OB_SUCC(rc)) {
-      rc = task->perform();
-    }
+    rc = task->perform();
     delete task;
   }
   return rc;

@@ -12,9 +12,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/memo.h"
 #include "sql/optimizer/cascade/rules.h"
 
-OptimizerContext::OptimizerContext()
+OptimizerContext::OptimizerContext(bool enable_cbo)
       : memo_(new Memo()), rule_set_(new RuleSet()), cost_model_(), task_pool_(nullptr),
-        cost_upper_bound_(std::numeric_limits<double>::max()) {}
+        cost_upper_bound_(std::numeric_limits<double>::max()), enable_cbo_(enable_cbo) {}
 
 OptimizerContext::~OptimizerContext() {
     if (task_pool_ != nullptr) {

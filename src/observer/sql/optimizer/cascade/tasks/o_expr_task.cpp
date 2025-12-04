@@ -22,7 +22,7 @@ RC OptimizeExpression::perform()
   std::vector<RuleWithPromise> valid_rules;
 
   // First, collect transformation rules (logical -> logical)
-  auto trans_rules = get_rule_set().get_rules_by_name(RuleSetName::LOGICAL_TRANSFORMATION);
+  auto &trans_rules = get_rule_set().get_rules_by_name(RuleSetName::LOGICAL_TRANSFORMATION);
   for (auto &rule : trans_rules) {
     // check if we can apply the rule
     bool already_explored = group_expr_->rule_explored(rule);
@@ -43,7 +43,7 @@ RC OptimizeExpression::perform()
   }
 
   // Then, collect implementation rules (logical -> physical)
-  auto phys_rules = get_rule_set().get_rules_by_name(RuleSetName::PHYSICAL_IMPLEMENTATION);
+  auto &phys_rules = get_rule_set().get_rules_by_name(RuleSetName::PHYSICAL_IMPLEMENTATION);
   for (auto &rule : phys_rules) {
     // check if we can apply the rule
     bool already_explored = group_expr_->rule_explored(rule);

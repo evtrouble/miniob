@@ -46,7 +46,7 @@ RC OptimizeInputs::perform()
         context_->get_memo().get_group_by_id(group_expr_->get_child_group_id(cur_child_idx_));
 
     // check whether the child group is already optimized
-    auto child_best_expr = child_group->get_winner();
+    auto child_best_expr = child_group->get_winner(context_->use_cbo());
     if (child_best_expr != nullptr) {
       cur_total_cost_ += child_best_expr->get_cost();
       LOG_DEBUG("cur_total_cost_ = %f", cur_total_cost_);

@@ -24,6 +24,7 @@ permissions:
 
 jobs:
   init-ubuntu:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     name: init-ubuntu
     outputs:
@@ -359,6 +360,7 @@ jobs:
           bash ./miniob_test_docker_entry.sh
           python3 ./libminiob_test.py -c conf.ini
   build-on-mac:
+    if: github.event.pull_request.draft == false
     runs-on: macos-latest
     name: build-macos
 

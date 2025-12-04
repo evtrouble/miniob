@@ -23,7 +23,7 @@ class GroupExpr;
 class Optimizer
 {
 public:
-  Optimizer() : context_(std::make_unique<OptimizerContext>()) {}
+  Optimizer(bool enable_cbo) : context_(std::make_unique<OptimizerContext>(enable_cbo)) {}
 
   RC optimize(GroupExpr *root_gexpr, std::unique_ptr<PhysicalOperator> &physical_operator);
 

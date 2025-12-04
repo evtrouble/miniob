@@ -40,14 +40,14 @@ public:
   }
 
   // 禁止拷贝
-  PacketBuffer(const PacketBuffer &) = delete;
+  PacketBuffer(const PacketBuffer &)            = delete;
   PacketBuffer &operator=(const PacketBuffer &) = delete;
 
   // 允许移动
   PacketBuffer(PacketBuffer &&other) noexcept : capacity_(other.capacity_), data_(other.data_)
   {
     other.capacity_ = 0;
-    other.data_      = nullptr;
+    other.data_     = nullptr;
   }
 
   PacketBuffer &operator=(PacketBuffer &&other) noexcept
@@ -56,10 +56,10 @@ public:
       if (data_) {
         free(data_);
       }
-      capacity_ = other.capacity_;
-      data_     = other.data_;
+      capacity_       = other.capacity_;
+      data_           = other.data_;
       other.capacity_ = 0;
-      other.data_      = nullptr;
+      other.data_     = nullptr;
     }
     return *this;
   }
@@ -101,4 +101,3 @@ private:
   size_t capacity_ = 0;
   char  *data_     = nullptr;
 };
-

@@ -37,7 +37,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     return RC::UNIMPLEMENTED;
   }
 
-  Optimizer optimizer;
+  Optimizer optimizer(sql_event->session_event()->session()->use_cascade());
   GroupExpr *root_gexpr = nullptr;
   
   // 直接生成GroupExpr结构

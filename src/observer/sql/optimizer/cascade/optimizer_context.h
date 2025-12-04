@@ -28,7 +28,7 @@ struct CandidateExpression;
 class OptimizerContext
 {
 public:
-  OptimizerContext();
+  OptimizerContext(bool enable_cbo);
 
   ~OptimizerContext();
 
@@ -56,11 +56,6 @@ public:
 
   double get_cost_upper_bound() const { return cost_upper_bound_; }
 
-  void configure(Session *session) {
-    enable_cbo_ = session->use_cascade();
-    // rule_set_->configure(session);  // Configure rule set
-  }
-  
   bool use_cbo() const { return enable_cbo_; }
 
 private:
@@ -69,5 +64,5 @@ private:
   CostModel     cost_model_;
   PendingTasks *task_pool_;
   double        cost_upper_bound_;
-  bool enable_cbo_ = false;
+  bool          enable_cbo_ = false;
 };
