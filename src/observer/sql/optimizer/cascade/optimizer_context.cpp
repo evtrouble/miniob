@@ -12,9 +12,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/memo.h"
 #include "sql/optimizer/cascade/rules.h"
 
-OptimizerContext::OptimizerContext()
+OptimizerContext::OptimizerContext(bool enable_cbo)
       : memo_(new Memo()), rule_set_(new RuleSet()), cost_model_(), task_pool_(nullptr),
-        cost_upper_bound_(std::numeric_limits<double>::max()) {}
+        cost_upper_bound_(std::numeric_limits<double>::max()), enable_cbo_(enable_cbo) {}
 
 OptimizerContext::~OptimizerContext() {
     if (task_pool_ != nullptr) {
@@ -31,40 +31,30 @@ OptimizerContext::~OptimizerContext() {
     }
   }
 
-GroupExpr *OptimizerContext::make_group_expression(OperatorNode* node)
-{
-  std::vector<int> child_groups;
-  for (auto &child : node->get_general_children()) {
-    auto gexpr = make_group_expression(child);
+bool OptimizerContext::record_node_into_group(unique_ptr<OperatorNode> node, GroupExpr **gexpr,
+                                  int target_group) {
+  // Note: ownership of node is transferred to GroupExpr
+  // If node already exists, memo_->insert_expression will delete new_gexpr, releasing node
+  std::vector<int> empty_child_groups;
+  auto new_gexpr = new GroupExpr(std::move(node), std::move(empty_child_groups));
+  auto ptr = memo_->insert_expression(new_gexpr, target_group);
+  ASSERT(ptr, "Root of expr should not fail insertion");
 
-    // Insert into the memo (this allows for duplicate detection)
-    auto mexpr = memo_->insert_expression(gexpr);
-    if (mexpr == nullptr) {
-      // Delete if need to (see InsertExpression spec)
-      child_groups.push_back(gexpr->get_group_id());
-      delete gexpr;
-    } else {
-      child_groups.push_back(mexpr->get_group_id());
-    }
-  }
-  return new GroupExpr(node, std::move(child_groups));
+  (*gexpr) = ptr;
+  // If returned ptr is not new_gexpr, node already exists, new_gexpr will be deleted and node released
+  // If returned ptr is new_gexpr, it's newly inserted, ownership of node has been transferred to GroupExpr
+  return (ptr == new_gexpr);
 }
 
-  bool OptimizerContext::record_node_into_group(OperatorNode* node, GroupExpr **gexpr,
-                                    int target_group) {
-    auto new_gexpr = make_group_expression(node);
-    auto ptr = memo_->insert_expression(new_gexpr, target_group);
-    ASSERT(ptr, "Root of expr should not fail insertion");
+bool OptimizerContext::record_node_into_group(CandidateExpression &candidate, GroupExpr **gexpr, int target_group) {
+  auto new_gexpr = new GroupExpr(std::move(candidate.op), std::move(candidate.child_group_ids));
+  auto ptr = memo_->insert_expression(new_gexpr, target_group);
+  ASSERT(ptr, "Root of expr should not fail insertion");
 
-    (*gexpr) = ptr;
-    return (ptr == new_gexpr);
-  }
+  (*gexpr) = ptr;
+  return (ptr == new_gexpr);
+}
 
-  Memo &OptimizerContext::get_memo() { return *memo_; }
+Memo &OptimizerContext::get_memo() { return *memo_; }
 
-  RuleSet &OptimizerContext::get_rule_set() { return *rule_set_; }
-
-  void OptimizerContext::record_operator_node_in_memo(unique_ptr<OperatorNode>&& node)
-  {
-    memo_->record_operator(std::move(node));
-  }
+RuleSet &OptimizerContext::get_rule_set() { return *rule_set_; }

@@ -32,6 +32,7 @@ RC FilterStmt::create(Db *db, Table *default_table, unordered_map<string, Table 
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
+  if(condition_num == 0)return RC::SUCCESS;
 
   FilterStmt *tmp_stmt = new FilterStmt();
   for (int i = 0; i < condition_num; i++) {

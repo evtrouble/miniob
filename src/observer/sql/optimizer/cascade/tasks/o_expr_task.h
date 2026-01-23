@@ -22,7 +22,7 @@ public:
       : CascadeTask(context, CascadeTaskType::OPTIMIZE_EXPR), group_expr_(group_expr)
   {}
 
-  void perform() override;
+  RC perform() override;
 
 private:
   GroupExpr *group_expr_;

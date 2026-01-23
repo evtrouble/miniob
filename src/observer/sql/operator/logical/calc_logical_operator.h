@@ -1,0 +1,39 @@
+/* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
+miniob is licensed under Mulan PSL v2.
+You can use this software according to the terms and conditions of the Mulan PSL v2.
+You may obtain a copy of Mulan PSL v2 at:
+         http://license.coscl.org.cn/MulanPSL2
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+See the Mulan PSL v2 for more details. */
+
+//
+// Created by Wangyunlai on 2022/12/07.
+//
+
+#pragma once
+
+#include "sql/operator/logical_operator.h"
+
+/**
+ * @brief 逻辑算子描述当前执行计划要做什么
+ * @details 可以看OptimizeStage中相关的代码
+ */
+class CalcLogicalOperator : public LogicalOperator
+{
+public:
+  CalcLogicalOperator(vector<unique_ptr<Expression>> &&expressions) { expressions_.swap(expressions); }
+  virtual ~CalcLogicalOperator() = default;
+
+  OpType get_op_type() const override { return OpType::LOGICALCALCULATE; }
+
+  unique_ptr<LogicalOperator> clone() const override
+  {
+    vector<unique_ptr<Expression>> exprs;
+    for (auto &expr : expressions_) {
+      exprs.push_back(expr->copy());
+    }
+    return make_unique<CalcLogicalOperator>(std::move(exprs));
+  }
+};

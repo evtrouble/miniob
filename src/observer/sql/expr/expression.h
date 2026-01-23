@@ -200,7 +200,12 @@ public:
 
   bool equal(const Expression &other) const override;
 
-  unique_ptr<Expression> copy() const override { return make_unique<FieldExpr>(field_); }
+  unique_ptr<Expression> copy() const override
+  {
+    auto copied = make_unique<FieldExpr>(field_);
+    copied->set_name(name());
+    return copied;
+  }
 
   ExprType type() const override { return ExprType::FIELD; }
   AttrType value_type() const override { return field_.attr_type(); }
@@ -277,7 +282,8 @@ public:
 
   AttrType value_type() const override { return cast_type_; }
 
-  unique_ptr<Expression> &child() { return child_; }
+  unique_ptr<Expression>       &child() { return child_; }
+  const unique_ptr<Expression> &child() const { return child_; }
 
 private:
   RC cast(const Value &value, Value &cast_value) const;
@@ -313,8 +319,10 @@ public:
    */
   RC eval(Chunk &chunk, vector<uint8_t> &select) override;
 
-  unique_ptr<Expression> &left() { return left_; }
-  unique_ptr<Expression> &right() { return right_; }
+  unique_ptr<Expression>       &left() { return left_; }
+  const unique_ptr<Expression> &left() const { return left_; }
+  unique_ptr<Expression>       &right() { return right_; }
+  const unique_ptr<Expression> &right() const { return right_; }
 
   /**
    * 尝试在没有tuple的情况下获取当前表达式的值
@@ -371,7 +379,8 @@ public:
 
   Type conjunction_type() const { return conjunction_type_; }
 
-  vector<unique_ptr<Expression>> &children() { return children_; }
+  vector<unique_ptr<Expression>>       &children() { return children_; }
+  const vector<unique_ptr<Expression>> &children() const { return children_; }
 
 private:
   Type                           conjunction_type_;
@@ -422,8 +431,10 @@ public:
 
   Type arithmetic_type() const { return arithmetic_type_; }
 
-  unique_ptr<Expression> &left() { return left_; }
-  unique_ptr<Expression> &right() { return right_; }
+  unique_ptr<Expression>       &left() { return left_; }
+  const unique_ptr<Expression> &left() const { return left_; }
+  unique_ptr<Expression>       &right() { return right_; }
+  const unique_ptr<Expression> &right() const { return right_; }
 
 private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
@@ -455,7 +466,8 @@ public:
 
   const char *aggregate_name() const { return aggregate_name_.c_str(); }
 
-  unique_ptr<Expression> &child() { return child_; }
+  unique_ptr<Expression>       &child() { return child_; }
+  const unique_ptr<Expression> &child() const { return child_; }
 
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }

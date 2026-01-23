@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "net/communicator.h"
+#include "net/packet_buffer.h"
 #include "common/lang/string.h"
 
 class SqlResult;
@@ -91,8 +92,8 @@ private:
    */
   RC handle_version_comment(bool &need_disconnect);
 
-  RC write_tuple_result(SqlResult *sql_result, vector<char> &packet, int &affected_rows, bool &need_disconnect);
-  RC write_chunk_result(SqlResult *sql_result, vector<char> &packet, int &affected_rows, bool &need_disconnect);
+  RC write_tuple_result(SqlResult *sql_result, PacketBuffer &packet, int &affected_rows, bool &need_disconnect);
+  RC write_chunk_result(SqlResult *sql_result, PacketBuffer &packet, int &affected_rows, bool &need_disconnect);
 
 private:
   //! 握手阶段(鉴权)，需要做一些特殊处理，所以加个字段单独标记

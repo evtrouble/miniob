@@ -11,6 +11,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/lang/vector.h"
+#include "common/sys/rc.h"
 
 class Rule;
 class GroupExpr;
@@ -25,7 +26,8 @@ enum class CascadeTaskType
   OPTIMIZE_EXPR,
   EXPLORE_GROUP,
   APPLY_RULE,
-  OPTIMIZE_INPUTS
+  OPTIMIZE_INPUTS,
+  OPTIMIZE_RBO_GROUP
 };
 
 class CascadeTask
@@ -33,7 +35,7 @@ class CascadeTask
 public:
   CascadeTask(OptimizerContext *context, CascadeTaskType type) : type_(type), context_(context) {}
 
-  virtual void perform() = 0;
+  virtual RC perform() = 0;
 
   Memo &get_memo() const;
 

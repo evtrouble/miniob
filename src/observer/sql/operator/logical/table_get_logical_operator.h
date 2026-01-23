@@ -1,0 +1,82 @@
+/* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
+miniob is licensed under Mulan PSL v2.
+You can use this software according to the terms and conditions of the Mulan PSL v2.
+You may obtain a copy of Mulan PSL v2 at:
+         http://license.coscl.org.cn/MulanPSL2
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+See the Mulan PSL v2 for more details. */
+
+//
+// Created by Wangyunlai on 2022/12/07.
+//
+#pragma once
+
+#include "sql/operator/logical_operator.h"
+#include "storage/field/field.h"
+#include "common/types.h"
+
+/**
+ * @brief 表示从表中获取数据的算子
+ * @details 比如使用全表扫描、通过索引获取数据等
+ * @ingroup LogicalOperator
+ */
+class TableGetLogicalOperator : public LogicalOperator
+{
+public:
+  TableGetLogicalOperator(Table *table, ReadWriteMode mode);
+  virtual ~TableGetLogicalOperator() = default;
+
+  OpType get_op_type() const override { return OpType::LOGICALGET; }
+
+  virtual uint64_t hash() const override
+  {
+    uint64_t hash = std::hash<int>()(static_cast<int>(get_op_type()));
+    hash ^= std::hash<int>()(table_->table_id());
+    // 将 predicates 也加入 hash 计算
+    hash ^= std::hash<size_t>()(predicates_.size());
+    for (const auto &pred : predicates_) {
+      // 使用 Expression 的类型和基本特征来生成 hash
+      hash ^= std::hash<int>()(static_cast<int>(pred->type()));
+    }
+    return hash;
+  }
+
+  virtual bool operator==(const OperatorNode &other) const override
+  {
+    if (get_op_type() != other.get_op_type())
+      return false;
+    const auto &other_get = static_cast<const TableGetLogicalOperator &>(other);
+    if (table_->table_id() != other_get.table()->table_id())
+      return false;
+    // 比较 predicates：数量必须相同，且每个 predicate 必须相等
+    if (predicates_.size() != other_get.predicates_.size())
+      return false;
+    for (size_t i = 0; i < predicates_.size(); i++) {
+      if (!predicates_[i]->equal(*(other_get.predicates_[i])))
+        return false;
+    }
+    return true;
+  }
+
+  unique_ptr<LogicalProperty> find_log_prop(const vector<LogicalProperty *> &log_props) override;
+
+  Table        *table() const { return table_; }
+  ReadWriteMode read_write_mode() const { return mode_; }
+
+  void set_predicates(vector<unique_ptr<Expression>> &&exprs);
+  auto predicates() -> vector<unique_ptr<Expression>> & { return predicates_; }
+
+  unique_ptr<LogicalOperator> clone() const override;
+
+private:
+  Table        *table_ = nullptr;
+  ReadWriteMode mode_  = ReadWriteMode::READ_WRITE;
+
+  // 与当前表相关的过滤操作，可以尝试在遍历数据时执行
+  // 这里的表达式都是比较简单的比较运算，并且左右两边都是取字段表达式或值表达式
+  // 不包含复杂的表达式运算，比如加减乘除、或者conjunction expression
+  // 如果有多个表达式，他们的关系都是 AND
+  vector<unique_ptr<Expression>> predicates_;
+};

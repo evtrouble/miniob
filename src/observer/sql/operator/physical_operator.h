@@ -29,33 +29,6 @@ class Trx;
  */
 
 /**
- * @brief 物理算子类型
- * @ingroup PhysicalOperator
- */
-enum class PhysicalOperatorType
-{
-  TABLE_SCAN,
-  TABLE_SCAN_VEC,
-  INDEX_SCAN,
-  NESTED_LOOP_JOIN,
-  HASH_JOIN,
-  EXPLAIN,
-  PREDICATE,
-  PREDICATE_VEC,
-  PROJECT,
-  PROJECT_VEC,
-  CALC,
-  STRING_LIST,
-  DELETE,
-  INSERT,
-  SCALAR_GROUP_BY,
-  HASH_GROUP_BY,
-  GROUP_BY_VEC,
-  AGGREGATE_VEC,
-  EXPR_VEC,
-};
-
-/**
  * @brief 与LogicalOperator对应，物理算子描述执行计划将如何执行
  * @ingroup PhysicalOperator
  */
@@ -74,8 +47,6 @@ public:
 
   bool is_physical() const override { return true; }
   bool is_logical() const override { return false; }
-
-  virtual PhysicalOperatorType type() const = 0;
 
   virtual RC open(Trx *trx) = 0;
   virtual RC next() { return RC::UNIMPLEMENTED; }

@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 
 class Memo;
 class GroupExpr;
+class Expression;
 /**
  * @brief cost model in cost-based optimization(CBO)
  */
@@ -44,4 +45,11 @@ public:
   inline double io() { return IO; }
 
   double calculate_cost(Memo *memo, GroupExpr *gexpr);
+
+  /**
+   * @brief Calculate the complexity cost of an expression
+   * @param expr The expression to evaluate
+   * @return The complexity cost multiplier (1.0 = base cost, higher = more expensive)
+   */
+  double calculate_expression_complexity(const Expression *expr) const;
 };

@@ -20,7 +20,9 @@ See the Mulan PSL v2 for more details. */
 enum class RuleType : uint32_t
 {
   // Transformation rules (logical -> logical)
-  // TODO: currently, we don't have transformation rules
+  PREDICATE_PUSHDOWN,   // 谓词下推
+  PREDICATE_REWRITE,    // 谓词重写（删除恒真/恒假谓词）
+  EXPRESSION_SIMPLIFY,  // 表达式简化
 
   // Don't move this one
   LogicalPhysicalDelimiter,
@@ -42,6 +44,7 @@ enum class RuleType : uint32_t
   PREDICATE_TO_PHYSICAL,
   GROUP_BY_TO_PHYSICAL_AGGREGATION,
   GROUP_BY_TO_PHYSICL_HASH_GROUP_BY,
+  EMPTY_TO_PHYSICAL,
 
   NUM_RULES
 };
@@ -51,26 +54,41 @@ enum class RuleType : uint32_t
  */
 enum class RuleSetName : uint32_t
 {
-  // TODO: add more rule sets
-  PHYSICAL_IMPLEMENTATION
+  LOGICAL_TRANSFORMATION,  // logical -> logical
+  PHYSICAL_IMPLEMENTATION  // logical -> physical
 };
 
 /**
  * Enum defining rule promises
- * LogicalPromise should be used for logical rules
+ * Higher promise means the rule should be applied sooner.
+ * Since we use a stack (LIFO), rules with higher promise are pushed later and executed first.
+ * We want TRANSFORMATION rules (logical -> logical) to execute before IMPLEMENTATION rules (logical -> physical),
+ * so TRANSFORMATION rules should have higher promise.
  */
 enum class RulePromise : uint32_t
 {
 
   /**
-   * Logical rule/low priority unnest
+   * Physical rule (implementation rules)
+   * Lower promise, will be pushed first, executed later
    */
-  LOGICAL_PROMISE = 0,
+  PHYSICAL_PROMISE = 0,
 
   /**
-   * Physical rule
+   * Logical rule (transformation rules)
+   * Higher promise, will be pushed later, executed first
    */
-  PHYSICAL_PROMISE = 1
+  LOGICAL_PROMISE = 1
+};
+
+struct CandidateExpression
+{
+  std::unique_ptr<OperatorNode> op;
+  std::vector<int>              child_group_ids;
+
+  CandidateExpression(std::unique_ptr<OperatorNode> node, std::vector<int> children = std::vector<int>())
+      : op(std::move(node)), child_group_ids(std::move(children))
+  {}
 };
 
 /**
@@ -126,8 +144,8 @@ public:
    * @param transformed Vector of "after" operator trees
    * @param context The current optimization context
    */
-  virtual void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const = 0;
+  virtual void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const = 0;
 
 protected:
   RuleType            type_;
@@ -147,9 +165,26 @@ public:
    */
   RulePromise get_promise() { return promise_; }
 
-  bool operator<(const RuleWithPromise &r) const { return promise_ < r.promise_; }
+  bool operator<(const RuleWithPromise &r) const
+  {
+    // Compare promise first, higher promise executes first
+    if (promise_ != r.promise_) {
+      return promise_ < r.promise_;
+    }
+    // Using stack (LIFO), higher type values are pushed later and execute first
+    // Execution order: EXPRESSION_SIMPLIFY (2) -> PREDICATE_REWRITE (1) -> PREDICATE_PUSHDOWN (0)
+    return static_cast<uint32_t>(rule_->get_type()) < static_cast<uint32_t>(r.rule_->get_type());
+  }
 
-  bool operator>(const RuleWithPromise &r) const { return promise_ > r.promise_; }
+  bool operator>(const RuleWithPromise &r) const
+  {
+    // Compare promise first, higher promise executes first
+    if (promise_ != r.promise_) {
+      return promise_ > r.promise_;
+    }
+    // When promise is equal, compare rule type in descending order
+    return static_cast<uint32_t>(rule_->get_type()) > static_cast<uint32_t>(r.rule_->get_type());
+  }
 
 private:
   /**

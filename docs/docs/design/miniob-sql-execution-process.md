@@ -1,9 +1,21 @@
-如图[image](images/miniob-sql-execution-process.png)
+---
+title: SQL 执行流程
+---
 
-PlantUML时序图使用 https://www.plantuml.com/plantuml 生成
-代码如下：
-```cpp
-@startuml
+### SQL 执行流程时序图
+
+![SQL 执行流程图](images/miniob-sql-execution-process.png)
+
+*图：MiniOB SQL 执行流程时序图（可通过 PlantUML 源码重新生成）*
+
+> 💡 提示：本图由 [PlantUML](https://www.plantuml.com/plantuml) 在线工具生成，可用于调试或更新图表。
+---
+
+#### PlantUML 源码
+
+建议保存此代码以便后续修改图像内容：
+
+```plantuml
 title SQL 执行流程时序图\n
 
 skinparam sequence {

@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/session_event.h"
 #include "event/sql_event.h"
 #include "sql/executor/sql_result.h"
-#include "sql/operator/string_list_physical_operator.h"
+#include "sql/operator/physical/string_list_physical_operator.h"
 
 /**
  * @brief Help语句执行器
@@ -34,12 +34,25 @@ public:
   {
     const char *strings[] = {"show tables;",
         "desc `table name`;",
-        "create table `table name` (`column name` `column type`, ...);",
+        "create table `table name` (`column name` `column type`, ... [, primary key (`columns`)]) [storage "
+        "format=`format`];",
         "create index `index name` on `table` (`column`);",
         "insert into `table` values(`value1`,`value2`);",
-        "update `table` set column=value [where `column`=`value`];",
+        "update `table` set `column`=`value` [where `column`=`value`];",
         "delete from `table` [where `column`=`value`];",
-        "select [ * | `columns` ] from `table`;"};
+        "select [ * | `columns` ] from `table` [where `column`=`value`] [group by `columns`];",
+        "drop table `table name`;",
+        "drop index `index name` on `table`;",
+        "set `variable`=`value`;",
+        "calc `expression`;",
+        "analyze table `table name`;",
+        "load data infile `file` into table `table name` [fields terminated by `delimiter`] [enclosed by `encloser`];",
+        "begin;",
+        "commit;",
+        "rollback;",
+        "sync;",
+        "exit;",
+        "help;"};
 
     auto oper = new StringListPhysicalOperator();
     for (size_t i = 0; i < sizeof(strings) / sizeof(strings[0]); i++) {

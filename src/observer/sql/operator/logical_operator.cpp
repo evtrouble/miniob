@@ -16,18 +16,18 @@ See the Mulan PSL v2 for more details. */
 
 LogicalOperator::~LogicalOperator() {}
 
-void LogicalOperator::add_child(unique_ptr<LogicalOperator> oper) {
-  children_.emplace_back(std::move(oper));
+void LogicalOperator::add_expressions(unique_ptr<Expression> expr) { 
+  expressions_.emplace_back(std::move(expr)); 
 }
-void LogicalOperator::add_expressions(unique_ptr<Expression> expr) { expressions_.emplace_back(std::move(expr)); }
-bool LogicalOperator::can_generate_vectorized_operator(const LogicalOperatorType &type)
+
+bool LogicalOperator::can_generate_vectorized_operator(OpType type)
 {
   bool bool_ret = false;
   switch (type)
   {
-  case LogicalOperatorType::CALC:
-  case LogicalOperatorType::DELETE:
-  case LogicalOperatorType::INSERT:
+  case OpType::LOGICALCALCULATE:
+  case OpType::LOGICALDELETE:
+  case OpType::LOGICALINSERT:
     bool_ret = false;
     break;
   
@@ -38,11 +38,24 @@ bool LogicalOperator::can_generate_vectorized_operator(const LogicalOperatorType
   return bool_ret;
 }
 
-void LogicalOperator::generate_general_child()
+string logical_operator_type_name(OpType type)
 {
-  for (auto &child : children_) {
-    general_children_.push_back(child.get());
-    child->generate_general_child();
+  switch (type) {
+    case OpType::LOGICALGET: return "LOGICAL_GET";
+    case OpType::LOGICALCALCULATE: return "LOGICAL_CALCULATE";
+    case OpType::LOGICALGROUPBY: return "LOGICAL_GROUP_BY";
+    case OpType::LOGICALPROJECTION: return "LOGICAL_PROJECTION";
+    case OpType::LOGICALFILTER: return "LOGICAL_FILTER";
+    case OpType::LOGICALINNERJOIN: return "LOGICAL_INNER_JOIN";
+    case OpType::LOGICALINSERT: return "LOGICAL_INSERT";
+    case OpType::LOGICALDELETE: return "LOGICAL_DELETE";
+    case OpType::LOGICALUPDATE: return "LOGICAL_UPDATE";
+    case OpType::LOGICALLIMIT: return "LOGICAL_LIMIT";
+    case OpType::LOGICALANALYZE: return "LOGICAL_ANALYZE";
+    case OpType::LOGICALEXPLAIN: return "LOGICAL_EXPLAIN";
+    case OpType::LOGICALEMPTY: return "LOGICAL_EMPTY";
+    default: return "UNKNOWN_LOGICAL";
   }
 }
 
+string LogicalOperator::name() const { return logical_operator_type_name(get_op_type()); }

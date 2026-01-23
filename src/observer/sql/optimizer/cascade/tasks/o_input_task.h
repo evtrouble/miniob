@@ -30,7 +30,7 @@ public:
         cur_child_idx_(task->cur_child_idx_)
   {}
 
-  void perform() override;
+  RC perform() override;
 
   ~OptimizeInputs() override {}
 
@@ -43,9 +43,4 @@ private:
    * input currently being or about to be optimized
    */
   int cur_child_idx_ = -1;
-
-  /**
-   * keep track of the previous optimized input idx
-   */
-  int prev_child_idx_ = -1;
 };

@@ -23,7 +23,7 @@ public:
       : CascadeTask(context, CascadeTaskType::APPLY_RULE), group_expr_(group_expr), rule_(rule)
   {}
 
-  void perform() override;
+  RC perform() override;
 
 private:
   GroupExpr *group_expr_;

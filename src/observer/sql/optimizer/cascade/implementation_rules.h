@@ -20,13 +20,21 @@ class LogicalGetToPhysicalSeqScan : public Rule
 public:
   LogicalGetToPhysicalSeqScan();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
-// TODO: support index scan
-// class LogicalGetToPhysicalIndexScan : public Rule {
-// };
+/**
+ * Rule transforms Logical Get -> Physical Index Scan
+ */
+class LogicalGetToPhysicalIndexScan : public Rule
+{
+public:
+  LogicalGetToPhysicalIndexScan();
+
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};
 
 /**
  * Rule transforms Logical Projection -> Physical Projection
@@ -36,8 +44,8 @@ class LogicalProjectionToProjection : public Rule
 public:
   LogicalProjectionToProjection();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
 /**
@@ -48,8 +56,8 @@ class LogicalInsertToInsert : public Rule
 public:
   LogicalInsertToInsert();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
 /**
@@ -60,8 +68,8 @@ class LogicalExplainToExplain : public Rule
 public:
   LogicalExplainToExplain();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
 /**
@@ -72,8 +80,8 @@ class LogicalCalcToCalc : public Rule
 public:
   LogicalCalcToCalc();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
 /**
@@ -84,8 +92,8 @@ class LogicalDeleteToDelete : public Rule
 public:
   LogicalDeleteToDelete();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
 /**
@@ -97,32 +105,66 @@ class LogicalPredicateToPredicate : public Rule
 public:
   LogicalPredicateToPredicate();
 
-  void transform(OperatorNode *input, std::vector<std::unique_ptr<OperatorNode>> *transformed,
-      OptimizerContext *context) const override;
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};
+
+/**
+ * Rule transforms Logical Inner Join -> Physical Nested Loop Join
+ */
+class LogicalInnerJoinToNestedLoopJoin : public Rule
+{
+public:
+  LogicalInnerJoinToNestedLoopJoin();
+
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};
+
+/**
+ * Rule transforms Logical Inner Join -> Physical Hash Join
+ */
+class LogicalInnerJoinToHashJoin : public Rule
+{
+public:
+  LogicalInnerJoinToHashJoin();
+
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
 };
 
 /**
  * Rule transforms Logical Groupby -> Physical Aggregation(Scalar Groupby)
- * TODO: currently group by is competition problem, so we don't implement this rule
  */
-// class LogicalGroupByToAggregation : public Rule {
-//  public:
-//   LogicalGroupByToAggregation();
+class LogicalGroupByToAggregation : public Rule
+{
+public:
+  LogicalGroupByToAggregation();
 
-//   void transform(OperatorNode* input,
-//                          std::vector<std::unique_ptr<OperatorNode>> *transformed,
-//                          OptimizerContext *context) const override;
-// };
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};
 
 /**
  * Rule transforms Logical GroupBy -> Physical GroupBy(Hash GroupBy)
- * TODO: currently group by is competition problem, so we don't implement this rule
  */
-// class LogicalGroupByToHashGroupBy : public Rule {
-//  public:
-//   LogicalGroupByToHashGroupBy();
+class LogicalGroupByToHashGroupBy : public Rule
+{
+public:
+  LogicalGroupByToHashGroupBy();
 
-//   void transform(OperatorNode* input,
-//                          std::vector<std::unique_ptr<OperatorNode>> *transformed,
-//                          OptimizerContext *context) const override;
-// };
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};
+
+/**
+ * Rule transforms Logical Empty -> Physical Empty
+ */
+class LogicalEmptyToEmpty : public Rule
+{
+public:
+  LogicalEmptyToEmpty();
+
+  void transform(
+      GroupExpr *input, std::vector<CandidateExpression> *transformed, OptimizerContext *context) const override;
+};

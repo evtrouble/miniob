@@ -19,6 +19,9 @@ class Property
 class LogicalProperty
 {
 public:
+  // Default cardinality when property is unknown
+  static constexpr int DEFAULT_CARDINALITY = 1000;
+
   explicit LogicalProperty(int card) : card_(card) {}
   LogicalProperty()  = default;
   ~LogicalProperty() = default;

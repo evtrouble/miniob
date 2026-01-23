@@ -11,6 +11,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/group.h"
 #include "sql/optimizer/cascade/group_expr.h"
 #include "sql/optimizer/cascade/memo.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
+#include "common/log/log.h"
 
 Group::Group(int id, GroupExpr* expr, Memo *memo)
       : id_(id), winner_(std::make_tuple(numeric_limits<double>::max(), nullptr)), has_explored_(false)
@@ -27,6 +30,11 @@ Group::Group(int id, GroupExpr* expr, Memo *memo)
 		}
 		
 		logical_prop_ = (expr->get_op())->find_log_prop(input_prop);
+  }
+  
+  // Create default LogicalProperty if find_log_prop returns nullptr
+  if (logical_prop_ == nullptr) {
+    logical_prop_ = make_unique<LogicalProperty>(LogicalProperty::DEFAULT_CARDINALITY);
   }
 }
 Group::~Group() {
@@ -49,8 +57,6 @@ void Group::add_expr(GroupExpr *expr)
 }
 
 bool Group::set_expr_cost(GroupExpr *expr, double cost) {
-  
-
   if (std::get<0>(winner_) > cost) {
     // this is lower cost
     winner_ = std::make_tuple(cost, expr);
@@ -59,13 +65,23 @@ bool Group::set_expr_cost(GroupExpr *expr, double cost) {
   return false;
 }
 
-GroupExpr *Group::get_winner() {
+GroupExpr *Group::get_winner(bool use_cbo) {
+  if (!use_cbo) {
+    // CBO disabled: return the last physical operator
+    // (the one that has been transformed by the most transformation rules)
+    if (!physical_expressions_.empty()) {
+      return physical_expressions_.back();
+    }
+    return nullptr;
+  }
+  
+  // CBO enabled: return the expression with the lowest cost
   return std::get<1>(winner_);
 }
 
 GroupExpr *Group::get_logical_expression() {
   ASSERT(logical_expressions_.size() == 1, "There should exist only 1 logical expression");
-  ASSERT(physical_expressions_.empty(), "No physical expressions should be present");
+  ASSERT(!logical_expressions_.empty(), "No logical expressions should be present");
   return logical_expressions_[0];
 }
 
@@ -73,4 +89,18 @@ void Group::dump() const
 {
   LOG_TRACE("Group %d has %lu logical expressions and %lu physical expressions", 
            id_, logical_expressions_.size(), physical_expressions_.size(), physical_expressions_.size());
+
+  for (size_t i = 0; i < logical_expressions_.size(); i++) {
+    auto op = logical_expressions_[i]->get_op();
+    string op_name = op->is_logical() ? static_cast<const LogicalOperator*>(op)->name() : "UNKNOWN";
+    LOG_TRACE("  Logical[%lu]: op_name=%s", i, op_name.c_str());
+  }
+  for (size_t i = 0; i < physical_expressions_.size(); i++) {
+    auto op = physical_expressions_[i]->get_op();
+    string op_name = op->is_physical() ? static_cast<const PhysicalOperator*>(op)->name() : "UNKNOWN";
+    LOG_TRACE("  Physical[%lu]: op_name=%s, cost=%.6f", 
+              i, 
+              op_name.c_str(),
+              physical_expressions_[i]->get_cost());
+  }
 }

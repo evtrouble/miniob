@@ -10,63 +10,80 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/optimizer/cascade/optimizer.h"
 #include "sql/optimizer/cascade/tasks/o_group_task.h"
+#include "sql/optimizer/cascade/tasks/o_rbo_group_task.h"
 #include "sql/optimizer/cascade/memo.h"
+#include "sql/operator/physical_operator.h"
+#include "common/log/log.h"
 
-std::unique_ptr<PhysicalOperator> Optimizer::optimize(OperatorNode* op_tree)
+RC Optimizer::optimize(GroupExpr *root_gexpr, std::unique_ptr<PhysicalOperator> &physical_operator)
 {
-  // Generate initial operator tree from query tree
-  GroupExpr *gexpr = nullptr;
-  bool insert = context_->record_node_into_group(op_tree, &gexpr);
-  ASSERT(insert && gexpr, "Logical expression tree should insert");
+  ASSERT(root_gexpr != nullptr, "Root group expression should not be null");
+  
   context_->get_memo().dump();
 
-  int root_id = gexpr->get_group_id();
+  int root_id = root_gexpr->get_group_id();
 
-  optimize_loop(root_id);
+  RC rc = optimize_loop(root_id);
+  if(OB_FAIL(rc)) {
+    return rc;
+  }
   LOG_TRACE("after optimize, memo dump:");
   context_->get_memo().dump();
-  return choose_best_plan(root_id);
+  return choose_best_plan(root_id, physical_operator);
 }
 
-std::unique_ptr<PhysicalOperator> Optimizer::choose_best_plan(int root_group_id)
+RC Optimizer::choose_best_plan(int root_group_id, std::unique_ptr<PhysicalOperator> &physical_operator)
 {
   auto &memo = context_->get_memo();
   Group *root_group = memo.get_group_by_id(root_group_id);
-  ASSERT(root_group != nullptr, "Root group should not be null");
+  if(root_group == nullptr) {
+    LOG_ERROR("Root group should not be null");
+    return RC::OPTIMIZER_INVALID_GROUP_ID;
+  }
 
   // Choose the best physical plan
-  auto winner = root_group->get_winner();
+  auto winner = root_group->get_winner(context_->use_cbo());
   if (winner == nullptr) {
     LOG_WARN("No winner found in group %d", root_group_id);
-    return nullptr;
+    return RC::OPTIMIZER_MEMO_INSERT_FAILED;
   }
-  auto winner_contents = winner->get_op();
-  context_->get_memo().release_operator(winner_contents);
-  PhysicalOperator* winner_phys = dynamic_cast<PhysicalOperator*>(winner_contents);
-  LOG_TRACE("winner: %d", winner_phys->type());
+  auto winner_contents = winner->release_op();
+  PhysicalOperator* winner_phys = static_cast<PhysicalOperator*>(winner_contents);
+  LOG_TRACE("winner: %s", winner_phys->name().c_str());
   for (const auto& child : winner->get_child_group_ids()) {
-    winner_phys->add_child(choose_best_plan(child));
+    std::unique_ptr<PhysicalOperator> child_operator;
+    RC rc = choose_best_plan(child, child_operator);
+    if(OB_FAIL(rc)) {
+      return rc;
+    }
+    winner_phys->add_child(std::move(child_operator));
   }
-
-  return std::unique_ptr<PhysicalOperator>(winner_phys);
+  physical_operator.reset(winner_phys);
+  return RC::SUCCESS;
 }
 
-void Optimizer::optimize_loop(int root_group_id)
+RC Optimizer::optimize_loop(int root_group_id)
 {
   auto task_stack = new PendingTasks();
   context_->set_task_pool(task_stack);
 
   Memo &memo = context_->get_memo();
-  task_stack->push(new OptimizeGroup(memo.get_group_by_id(root_group_id), context_.get()));
+  if (context_->use_cbo()) {
+    task_stack->push(new OptimizeGroup(memo.get_group_by_id(root_group_id), context_.get()));
+  } else {
+    task_stack->push(new OptimizeRBOGroup(memo.get_group_by_id(root_group_id), context_.get()));
+  }
 
-  execute_task_stack(task_stack, root_group_id, context_.get());
+  return execute_task_stack(task_stack, root_group_id, context_.get());
 }
 
-void Optimizer::execute_task_stack(PendingTasks *task_stack, int root_group_id, OptimizerContext *root_context)
+RC Optimizer::execute_task_stack(PendingTasks *task_stack, int root_group_id, OptimizerContext *root_context)
 {
-  while (!task_stack->empty()) {
+  RC rc = RC::SUCCESS;
+  while (OB_SUCC(rc) && !task_stack->empty()) {
     auto task = task_stack->pop();
-    task->perform();
+    rc = task->perform();
     delete task;
   }
+  return rc;
 }

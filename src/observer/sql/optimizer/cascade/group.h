@@ -58,9 +58,10 @@ public:
   bool set_expr_cost(GroupExpr *expr, double cost);
 
   /**
-   * @return The expression with the lowest cost.
+   * @return The expression with the lowest cost (when CBO enabled),
+   *         or the last physical expression (when CBO disabled).
    */
-  GroupExpr *get_winner();
+  GroupExpr *get_winner(bool use_cbo = false);
 
   /**
    * @brief Gets the logical expressions in the group.
@@ -95,6 +96,11 @@ public:
 
   LogicalProperty *get_logical_prop() { return logical_prop_.get(); }
 
+  bool is_alias() const { return alias_target_ != -1; }
+  int  get_alias_target() const { return alias_target_; }
+
+  void set_alias(int target) { alias_target_ = target; }
+
   ///< dump the group info, for debug
   void dump() const;
 
@@ -110,4 +116,6 @@ private:
   std::vector<GroupExpr *> physical_expressions_;
 
   unique_ptr<LogicalProperty> logical_prop_ = nullptr;
+
+  int alias_target_ = -1;
 };

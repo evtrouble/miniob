@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_event.h"
 #include "session/session.h"
 #include "sql/executor/sql_result.h"
-#include "sql/operator/string_list_physical_operator.h"
+#include "sql/operator/physical/string_list_physical_operator.h"
 #include "storage/db/db.h"
 
 /**

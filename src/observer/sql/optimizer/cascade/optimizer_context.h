@@ -16,9 +16,11 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/pending_tasks.h"
 #include "sql/operator/operator_node.h"
 #include "sql/optimizer/cascade/property_set.h"
+#include "session/session.h"
 
 class Memo;
 class RuleSet;
+struct CandidateExpression;
 /**
  * OptimizerContext is a class containing pointers to various objects
  * that are required during the entire query optimization process.
@@ -26,7 +28,7 @@ class RuleSet;
 class OptimizerContext
 {
 public:
-  OptimizerContext();
+  OptimizerContext(bool enable_cbo);
 
   ~OptimizerContext();
 
@@ -46,15 +48,15 @@ public:
     task_pool_ = pending_tasks;
   }
 
-  void record_operator_node_in_memo(unique_ptr<OperatorNode> &&node);
+  // Record OperatorNode without children into memo (for leaf nodes like TableGet, Calc, Insert)
+  bool record_node_into_group(unique_ptr<OperatorNode> node, GroupExpr **gexpr, int target_group = -1);
 
-  GroupExpr *make_group_expression(OperatorNode *node);
-
-  bool record_node_into_group(OperatorNode *node, GroupExpr **gexpr) { return record_node_into_group(node, gexpr, -1); }
-
-  bool record_node_into_group(OperatorNode *node, GroupExpr **gexpr, int target_group);
+  // Record CandidateExpression with children into memo (children specified by child_group_ids)
+  bool record_node_into_group(CandidateExpression &candidate, GroupExpr **gexpr, int target_group = -1);
 
   double get_cost_upper_bound() const { return cost_upper_bound_; }
+
+  bool use_cbo() const { return enable_cbo_; }
 
 private:
   Memo         *memo_;
@@ -62,4 +64,5 @@ private:
   CostModel     cost_model_;
   PendingTasks *task_pool_;
   double        cost_upper_bound_;
+  bool          enable_cbo_ = false;
 };

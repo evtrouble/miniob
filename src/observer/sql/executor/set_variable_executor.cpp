@@ -42,15 +42,15 @@ RC SetVariableExecutor::execute(SQLStageEvent *sql_event)
           session->set_hash_join(bool_value);
           LOG_TRACE("set hash_join to %d", bool_value);
         }
-      } else if (strcasecmp(var_name, "use_cascade") == 0) {
-        // TODO: remove this params, due to the dblab needed, likely to be long-existing
-        bool bool_value = false;
-        rc              = var_value_to_boolean(var_value, bool_value);
-        if (rc == RC::SUCCESS) {
-          session->set_use_cascade(bool_value);
-          LOG_TRACE("set use_cascade to %d", bool_value);
-        }
-      } else {
+    } else if (strcasecmp(var_name, "use_cascade") == 0) {
+      // TODO: remove this params, due to the dblab needed, likely to be long-existing
+      bool bool_value = false;
+      rc              = var_value_to_boolean(var_value, bool_value);
+      if (rc == RC::SUCCESS) {
+        session->set_use_cascade(bool_value);
+        LOG_TRACE("set use_cascade to %d", bool_value);
+      }
+    } else {
       rc = RC::VARIABLE_NOT_EXISTS;
     }
 

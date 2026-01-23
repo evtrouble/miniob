@@ -13,16 +13,37 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/cascade/tasks/e_group_task.h"
 #include "sql/optimizer/cascade/group_expr.h"
 #include "sql/optimizer/cascade/memo.h"
+#include "sql/operator/logical_operator.h"
 #include "common/log/log.h"
 #include <algorithm>
 
-void OptimizeExpression::perform()
+RC OptimizeExpression::perform()
 {
   std::vector<RuleWithPromise> valid_rules;
 
-  // Construct valid transformation rules from rule set
-  // TODO: add transformation rules
-  auto phys_rules = get_rule_set().get_rules_by_name(RuleSetName::PHYSICAL_IMPLEMENTATION);
+  // First, collect transformation rules (logical -> logical)
+  auto &trans_rules = get_rule_set().get_rules_by_name(RuleSetName::LOGICAL_TRANSFORMATION);
+  for (auto &rule : trans_rules) {
+    // check if we can apply the rule
+    bool already_explored = group_expr_->rule_explored(rule);
+    if (already_explored) {
+      continue;
+    }
+    bool root_pattern_mismatch = group_expr_->get_op()->get_op_type() != rule->get_match_pattern()->type();
+
+    bool child_pattern_mismatch =
+        group_expr_->get_children_groups_size() != rule->get_match_pattern()->get_child_patterns_size();
+
+    if (root_pattern_mismatch || child_pattern_mismatch) {
+      continue;
+    }
+
+    auto promise = rule->promise(group_expr_);
+    valid_rules.emplace_back(rule, promise);
+  }
+
+  // Then, collect implementation rules (logical -> physical)
+  auto &phys_rules = get_rule_set().get_rules_by_name(RuleSetName::PHYSICAL_IMPLEMENTATION);
   for (auto &rule : phys_rules) {
     // check if we can apply the rule
     bool already_explored = group_expr_->rule_explored(rule);
@@ -42,6 +63,13 @@ void OptimizeExpression::perform()
     valid_rules.emplace_back(rule, promise);
   }
 
+  if(valid_rules.size() == 0 && group_expr_->get_op()->is_logical()) {
+    auto logical_op = static_cast<LogicalOperator *>(group_expr_->get_op());
+    LOG_ERROR("Missing physical implementation rule for logical operator: %s (type: %d)", 
+              logical_op->name().c_str(), static_cast<int>(group_expr_->get_op()->get_op_type()));
+    return RC::OPTIMIZER_GROUP_EXPR_CREATE_FAILED;
+  }
+
   std::sort(valid_rules.begin(), valid_rules.end());
   LOG_TRACE("OptimizeExpression::perform() op {%d}, valid rules : {%d}",
                       static_cast<int>(group_expr_->get_op()->get_op_type()), valid_rules.size());
@@ -58,4 +86,5 @@ void OptimizeExpression::perform()
       child_group_idx++;
     }
   }
+  return RC::SUCCESS;
 }

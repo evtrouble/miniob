@@ -1,10 +1,18 @@
-name: build
+name: build and test
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    types: [opened, reopened, synchronize, ready_for_review] 
+    paths-ignore:
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+      - 'README.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -16,6 +24,7 @@ permissions:
 
 jobs:
   init-ubuntu:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     name: init-ubuntu
     outputs:
@@ -351,6 +360,7 @@ jobs:
           bash ./miniob_test_docker_entry.sh
           python3 ./libminiob_test.py -c conf.ini
   build-on-mac:
+    if: github.event.pull_request.draft == false
     runs-on: macos-latest
     name: build-macos
 

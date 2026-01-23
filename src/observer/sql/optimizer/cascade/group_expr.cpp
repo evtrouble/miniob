@@ -9,13 +9,17 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #include "sql/optimizer/cascade/group_expr.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
+#include "common/log/log.h"
 
 uint64_t GroupExpr::hash() const
 {
   auto hash = contents_->hash();
   for (const auto &child : child_groups_) {
-    hash ^= std::hash<int>()(child) + 0x9e3779b9 + (hash << 6) + (hash >> 2);;
+    hash ^= std::hash<int>()(child) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
   }
+  hash ^= std::hash<int>()(group_id_) + 0x9e3779b9 + (hash << 6) + (hash >> 2);;
   return hash;
 }
 
@@ -25,5 +29,11 @@ void GroupExpr::dump() const
   for (const auto &child : child_groups_) {
     ss << child << " ";
   }
-  LOG_TRACE("GroupExpr contents: %d child groups:  %s", static_cast<int>(contents_->get_op_type()), ss.str().c_str());
+  string op_name = "UNKNOWN";
+  if (contents_->is_logical()) {
+    op_name = static_cast<const LogicalOperator*>(contents_.get())->name();
+  } else if (contents_->is_physical()) {
+    op_name = static_cast<const PhysicalOperator*>(contents_.get())->name();
+  }
+  LOG_TRACE("GroupExpr contents: op_name=%s, child groups: %s", op_name.c_str(), ss.str().c_str());
 }
