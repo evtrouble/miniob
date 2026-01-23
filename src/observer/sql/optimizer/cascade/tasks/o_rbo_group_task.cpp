@@ -27,26 +27,6 @@ RC OptimizeRBOGroup::perform()
   return physical_generate();
 }
 
-RC OptimizeRBOGroup::optimize_child_groups_if_needed(GroupExpr *group_expr)
-{
-  for (int child_id : group_expr->get_child_group_ids()) {
-    Group *child_group = get_memo().get_group_by_id(child_id);
-    if (child_group == nullptr) {
-      return RC::OPTIMIZER_INVALID_GROUP_ID;
-    }
-    
-    // If child group hasn't been explored, recursively optimize it
-    if (!child_group->has_explored()) {
-      OptimizeRBOGroup child_task(child_group, context_);
-      RC rc = child_task.logical_generate();
-      if (OB_FAIL(rc)) {
-        return rc;
-      }
-    }
-  }
-  return RC::SUCCESS;
-}
-
 RC OptimizeRBOGroup::logical_generate()
 {
   if (group_->has_explored()) {
@@ -73,13 +53,7 @@ RC OptimizeRBOGroup::logical_generate()
     
     for (auto &candidate : after) {
       GroupExpr *new_gexpr = nullptr;
-      if (context_->record_node_into_group(candidate, &new_gexpr, group_->get_id())) {
-        // New logical operator generated, optimize its child groups if needed
-        RC rc = optimize_child_groups_if_needed(new_gexpr);
-        if (OB_FAIL(rc)) {
-          return rc;
-        }
-      }
+      context_->record_node_into_group(candidate, &new_gexpr, group_->get_id());
     }
   }
 
@@ -89,20 +63,29 @@ RC OptimizeRBOGroup::logical_generate()
     if (child_group == nullptr) {
       return RC::OPTIMIZER_INVALID_GROUP_ID;
     }
-    OptimizeRBOGroup child_task(child_group, context_);
-    RC rc = child_task.logical_generate();
-    if (OB_FAIL(rc)) {
-      return rc;
+    
+    // If child group hasn't been explored, recursively optimize it
+    if (!child_group->has_explored()) {
+      OptimizeRBOGroup child_task(child_group, context_);
+      RC rc = child_task.logical_generate();
+      if (OB_FAIL(rc)) {
+        return rc;
+      }
     }
   }
 
+  group_->set_explored();
   return RC::SUCCESS;
 }
 
 RC OptimizeRBOGroup::physical_generate()
 {
   // Apply implementation rules to the final logical operator
-  // Only apply basic rules (not CBO-specific rules like IndexScan)
+  // TODO: Only apply basic rules (not CBO-specific rules like JoinReorder)
+  if(!group_->get_physical_expressions().empty()) {
+    return RC::SUCCESS;
+  }
+
   GroupExpr *logical_expr = group_->get_logical_expressions().back();
   auto &impl_rules = get_rule_set().get_rules_by_name(RuleSetName::PHYSICAL_IMPLEMENTATION);
 

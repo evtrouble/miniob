@@ -33,13 +33,5 @@ public:
   RC physical_generate();
 
 private:
-  /**
-   * @brief Optimize child groups if they haven't been explored yet
-   * This is called after applying rules that may create new child groups
-   * @param group_expr The GroupExpr whose child groups need to be checked
-   * @return RC::SUCCESS if all child groups are optimized successfully
-   */
-  RC optimize_child_groups_if_needed(GroupExpr *group_expr);
-
   Group *group_;
 };
